@@ -1008,6 +1008,16 @@
     <div class="modal-title">Nouvelle recette</div>
 
     <div class="form-group">
+      <label class="form-label">Importer depuis une URL</label>
+      <div style="display:flex;gap:8px">
+        <input class="form-input compact" id="r-url" type="url" placeholder="https://www.marmiton.org/..." style="flex:1">
+        <button type="button" onclick="importFromUrl()" id="btn-import-url" style="background:var(--gold);border:none;border-radius:var(--radius-sm);padding:9px 16px;color:var(--bg);font-size:13px;cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif">Importer</button>
+      </div>
+      <div id="import-status" style="font-size:12px;color:var(--text3);margin-top:6px"></div>
+    </div>
+    <div style="text-align:center;color:var(--text3);font-size:12px;margin:4px 0 16px">-- ou saisir manuellement --</div>
+
+    <div class="form-group">
       <label class="form-label">Nom de la recette *</label>
       <input class="form-input" id="r-name" type="text" placeholder="Ex: Bœuf bourguignon">
     </div>
@@ -1876,6 +1886,51 @@
       console.error(e);
     }
   }
+
+  // -- IMPORT DEPUIS URL --
+  window.importFromUrl = async () => {
+    const url = document.getElementById('r-url').value.trim();
+    if (!url) { showToast('Colle une URL d\'abord'); return; }
+    const statusEl = document.getElementById('import-status');
+    const btnEl = document.getElementById('btn-import-url');
+    statusEl.textContent = 'Importation en cours...';
+    btnEl.disabled = true;
+    btnEl.textContent = '...';
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: 'Tu es un extracteur de recettes. On te donne une URL. Fais une requete fetch vers cette URL, lis le HTML et extrait la recette. Reponds UNIQUEMENT en JSON valide avec ces champs: name, category (Entree/Plat/Soupe Potage/Dessert/Aperitif/Petit-dejeuner/Autre), prepTime (nombre de minutes seulement), servings (nombre), ingredients (texte, un par ligne), instructions (texte, une etape par ligne). Si tu ne peux pas acceder a lURL reponds avec {"error": "impossible"}.',
+          messages: [{ role: 'user', content: 'Extrait la recette depuis cette URL: ' + url }]
+        })
+      });
+      const data = await response.json();
+      const text = data.content?.[0]?.text || '';
+      const clean = text.replace(/```json|```/g, '').trim();
+      const recipe = JSON.parse(clean);
+      if (recipe.error) {
+        statusEl.textContent = 'Impossible d\'importer ce site. Essaie un autre.';
+        statusEl.style.color = 'var(--red)';
+      } else {
+        if (recipe.name) document.getElementById('r-name').value = recipe.name;
+        if (recipe.category) document.getElementById('r-category').value = recipe.category;
+        if (recipe.prepTime) document.getElementById('r-time').value = recipe.prepTime;
+        if (recipe.servings) document.getElementById('r-servings').value = recipe.servings;
+        if (recipe.ingredients) document.getElementById('r-ingredients').value = recipe.ingredients;
+        if (recipe.instructions) document.getElementById('r-instructions').value = recipe.instructions;
+        statusEl.textContent = 'Recette importee ! Verifie et complete les champs.';
+        statusEl.style.color = 'var(--green)';
+      }
+    } catch(e) {
+      statusEl.textContent = 'Erreur : ' + e.message;
+      statusEl.style.color = 'var(--red)';
+    }
+    btnEl.disabled = false;
+    btnEl.textContent = 'Importer';
+  };
 
   window.adjustTime = (delta) => {
     const el = document.getElementById('r-time');
