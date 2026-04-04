@@ -674,6 +674,15 @@
       cursor: pointer; padding: 4px;
       line-height: 1;
     }
+    .detail-edit-btn, .detail-delete-btn {
+      background: none; border: none;
+      cursor: pointer; padding: 6px;
+      font-size: 18px; line-height: 1;
+      opacity: 0.7; transition: opacity 0.2s;
+    }
+    .detail-edit-btn { color: var(--gold); }
+    .detail-delete-btn { color: var(--red); }
+    .detail-edit-btn:active, .detail-delete-btn:active { opacity: 1; }
     .detail-title {
       font-family: 'Cormorant Garamond', serif;
       font-size: 20px; font-weight: 300;
@@ -1003,6 +1012,73 @@
   </div>
 </div>
 
+<!-- MODAL MODIFIER RECETTE -->
+<div class="modal-overlay" id="modal-edit-recipe">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Modifier la recette</div>
+
+    <div class="form-group">
+      <label class="form-label">Nom de la recette *</label>
+      <input class="form-input" id="e-name" type="text">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Catégorie</label>
+      <select class="form-input compact" id="e-category">
+        <option value="">— Choisir —</option>
+        <option>Entrée</option>
+        <option>Plat</option>
+        <option>Soupe / Potage</option>
+        <option>Dessert</option>
+        <option>Apéritif</option>
+        <option>Petit-déjeuner</option>
+        <option>Autre</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Type de recette</label>
+      <select class="form-input compact" id="e-type">
+        <option value="">— Choisir —</option>
+        <option value="minute">Recette minute</option>
+        <option value="avance">Peut se préparer à l'avance et réchauffer</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Temps de préparation (minutes)</label>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button type="button" onclick="adjustEditTime(-5)" style="width:40px;height:40px;border-radius:50%;background:var(--surface2);border:1px solid rgba(201,168,76,0.3);color:var(--gold);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">−</button>
+        <input class="form-input compact" id="e-time" type="number" placeholder="30" min="0" style="text-align:center;font-size:16px">
+        <button type="button" onclick="adjustEditTime(5)" style="width:40px;height:40px;border-radius:50%;background:var(--surface2);border:1px solid rgba(201,168,76,0.3);color:var(--gold);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">+</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nombre de personnes</label>
+      <input class="form-input compact" id="e-servings" type="number" placeholder="4" min="1">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Ingrédients</label>
+      <textarea class="form-input large" id="e-ingredients" placeholder="Un ingrédient par ligne"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Instructions</label>
+      <textarea class="form-input large" id="e-instructions" placeholder="Étapes de préparation..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Note</label>
+      <div class="star-rating" id="edit-star-rating">
+        <button class="star-btn" data-val="1" onclick="setEditRating(1)">★</button>
+        <button class="star-btn" data-val="2" onclick="setEditRating(2)">★</button>
+        <button class="star-btn" data-val="3" onclick="setEditRating(3)">★</button>
+        <button class="star-btn" data-val="4" onclick="setEditRating(4)">★</button>
+        <button class="star-btn" data-val="5" onclick="setEditRating(5)">★</button>
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="saveEdit()">Enregistrer les modifications</button>
+    <button class="btn-secondary" onclick="closeModal('modal-edit-recipe')">Annuler</button>
+  </div>
+</div>
+
 <!-- MODAL GROUPE FAMILLE -->
 <div class="modal-overlay" id="modal-group">
   <div class="modal">
@@ -1031,6 +1107,8 @@
   <div class="detail-header">
     <button class="detail-back" onclick="closeDetail()">‹</button>
     <div class="detail-title" id="detail-title"></div>
+    <button class="detail-edit-btn" onclick="openEditModal()" title="Modifier">✎</button>
+    <button class="detail-delete-btn" onclick="confirmDelete()" title="Supprimer">🗑</button>
   </div>
   <div class="detail-content" id="detail-content"></div>
 </div>
@@ -1103,6 +1181,8 @@
   let currentUser = null;
   let currentRating = 0;
   let userGroupId = null;
+  let currentRecipeId = null;
+  let currentEditRating = 0;
 
   // -- SPLASH --
   setTimeout(() => {
@@ -1347,6 +1427,7 @@
   let allRecipes = [];
 
   window.openRecipe = async (id) => {
+    currentRecipeId = id;
     let recipe = allRecipes.find(r => r.id === id);
     if (!recipe) {
       // Charger depuis Firestore si pas en mémoire
@@ -1451,6 +1532,82 @@
     document.getElementById('cook-photo-preview').style.display = 'none';
     document.getElementById('cook-photo-input').value = '';
     openModal('modal-cook');
+  };
+
+  // -- MODIFIER / SUPPRIMER --
+  window.openEditModal = () => {
+    if (!currentRecipeId) return;
+    const recipe = allRecipes.find(r => r.id === currentRecipeId);
+    if (!recipe) return;
+    const r = recipe.data;
+    document.getElementById('e-name').value = r.name || '';
+    document.getElementById('e-category').value = r.category || '';
+    document.getElementById('e-type').value = r.type || '';
+    const mins = r.prepTime ? r.prepTime.replace(' min','') : '';
+    document.getElementById('e-time').value = mins;
+    document.getElementById('e-servings').value = r.servings || '';
+    document.getElementById('e-ingredients').value = r.ingredients || '';
+    document.getElementById('e-instructions').value = r.instructions || '';
+    setEditRating(r.rating || 0);
+    openModal('modal-edit-recipe');
+  };
+
+  window.adjustEditTime = (delta) => {
+    const el = document.getElementById('e-time');
+    el.value = Math.max(0, (parseInt(el.value) || 0) + delta);
+  };
+
+  window.setEditRating = (val) => {
+    currentEditRating = val;
+    document.querySelectorAll('#edit-star-rating .star-btn').forEach(b => {
+      b.classList.toggle('active', parseInt(b.dataset.val) <= val);
+    });
+  };
+
+  window.saveEdit = async () => {
+    const name = document.getElementById('e-name').value.trim();
+    if (!name) { showToast('Le nom est obligatoire'); return; }
+    try {
+      const gid = userGroupId || currentUser.uid;
+      const recipeRef = doc(db, 'groups', gid, 'recipes', currentRecipeId);
+      const timeVal = document.getElementById('e-time').value;
+      await updateDoc(recipeRef, {
+        name,
+        category: document.getElementById('e-category').value,
+        type: document.getElementById('e-type').value,
+        prepTime: timeVal ? timeVal + ' min' : '',
+        servings: parseInt(document.getElementById('e-servings').value) || null,
+        ingredients: document.getElementById('e-ingredients').value.trim(),
+        instructions: document.getElementById('e-instructions').value.trim(),
+        rating: currentEditRating,
+      });
+      closeModal('modal-edit-recipe');
+      showToast('Recette modifiée !');
+      await loadRecentRecipes();
+      openRecipe(currentRecipeId);
+    } catch(e) {
+      showToast('Erreur : ' + e.message);
+    }
+  };
+
+  window.confirmDelete = () => {
+    if (confirm('Supprimer cette recette ? Cette action est irréversible.')) {
+      deleteRecipe();
+    }
+  };
+
+  window.deleteRecipe = async () => {
+    try {
+      const gid = userGroupId || currentUser.uid;
+      const { deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+      await deleteDoc(doc(db, 'groups', gid, 'recipes', currentRecipeId));
+      closeDetail();
+      showToast('Recette supprimée');
+      loadStats();
+      loadRecentRecipes();
+    } catch(e) {
+      showToast('Erreur : ' + e.message);
+    }
   };
 
   window.adjustConvives = (delta) => {
