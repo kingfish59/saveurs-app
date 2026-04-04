@@ -1538,7 +1538,7 @@
   };
 
   // -- HISTORIQUE DANS FICHE --
-  async function loadRecipeHistory(recipeId) {
+  window.loadRecipeHistory = async function(recipeId) {
     try {
       const gid = userGroupId || currentUser.uid;
       const q = query(
@@ -1573,7 +1573,7 @@
     } catch(e) { console.log('History error:', e); }
   }
 
-  function formatDate(dateStr) {
+  window.formatDate = function(dateStr) {
     if (!dateStr) return '';
     const d = new Date(dateStr);
     return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
