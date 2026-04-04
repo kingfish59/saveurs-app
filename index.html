@@ -840,6 +840,35 @@
 
 <!-- SPLASH -->
 <div id="splash">
+  <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:4px">
+    <!-- Vapeur -->
+    <g class="steam">
+      <path d="M28 22 Q25 17 28 12 Q31 7 28 2" stroke="#c9a84c" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7">
+        <animate attributeName="opacity" values="0;0.7;0" dur="2s" repeatCount="indefinite" begin="0s"/>
+        <animate attributeName="d" values="M28 22 Q25 17 28 12 Q31 7 28 2;M28 22 Q31 17 28 12 Q25 7 28 2;M28 22 Q25 17 28 12 Q31 7 28 2" dur="2s" repeatCount="indefinite" begin="0s"/>
+      </path>
+      <path d="M40 20 Q37 15 40 10 Q43 5 40 0" stroke="#c9a84c" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7">
+        <animate attributeName="opacity" values="0;0.7;0" dur="2s" repeatCount="indefinite" begin="0.4s"/>
+        <animate attributeName="d" values="M40 20 Q37 15 40 10 Q43 5 40 0;M40 20 Q43 15 40 10 Q37 5 40 0;M40 20 Q37 15 40 10 Q43 5 40 0" dur="2s" repeatCount="indefinite" begin="0.4s"/>
+      </path>
+      <path d="M52 22 Q49 17 52 12 Q55 7 52 2" stroke="#c9a84c" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7">
+        <animate attributeName="opacity" values="0;0.7;0" dur="2s" repeatCount="indefinite" begin="0.8s"/>
+        <animate attributeName="d" values="M52 22 Q49 17 52 12 Q55 7 52 2;M52 22 Q55 17 52 12 Q49 7 52 2;M52 22 Q49 17 52 12 Q55 7 52 2" dur="2s" repeatCount="indefinite" begin="0.8s"/>
+      </path>
+    </g>
+    <!-- Couvercle -->
+    <rect x="18" y="26" width="44" height="7" rx="3.5" fill="#c9a84c"/>
+    <rect x="33" y="22" width="14" height="6" rx="3" fill="#e8c97a"/>
+    <!-- Corps cocotte -->
+    <rect x="14" y="33" width="52" height="32" rx="10" fill="#2a2519" stroke="#c9a84c" stroke-width="2"/>
+    <!-- Reflet -->
+    <rect x="20" y="38" width="8" height="18" rx="4" fill="#c9a84c" opacity="0.15"/>
+    <!-- Anses -->
+    <rect x="4" y="38" width="12" height="8" rx="4" fill="#2a2519" stroke="#c9a84c" stroke-width="2"/>
+    <rect x="64" y="38" width="12" height="8" rx="4" fill="#2a2519" stroke="#c9a84c" stroke-width="2"/>
+    <!-- Pied -->
+    <rect x="22" y="63" width="36" height="6" rx="3" fill="#c9a84c" opacity="0.5"/>
+  </svg>
   <div class="splash-logo">Saveurs</div>
   <div class="splash-line"></div>
   <div class="splash-sub">Vos recettes, votre histoire</div>
@@ -1861,6 +1890,25 @@
     el.value = Math.max(1, current + delta);
   };
 
+  function compressImage(file, maxWidth, quality) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let w = img.width, h = img.height;
+          if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   window.previewCookPhoto = (input) => {
     if (input.files && input.files[0]) {
       const reader = new FileReader();
@@ -1888,15 +1936,16 @@
       createdAt: serverTimestamp()
     };
 
-    // Photo en base64 si présente
+    // Photo compressée en base64 si présente
     const photoInput = document.getElementById('cook-photo-input');
     if (photoInput.files && photoInput.files[0]) {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        cookData.photoBase64 = e.target.result;
+      try {
+        cookData.photoBase64 = await compressImage(photoInput.files[0], 800, 0.7);
         await saveHistoryEntry(gid, recipeId, cookData);
-      };
-      reader.readAsDataURL(photoInput.files[0]);
+      } catch(e) {
+        showToast('Erreur compression photo');
+        console.error(e);
+      }
     } else {
       await saveHistoryEntry(gid, recipeId, cookData);
     }
