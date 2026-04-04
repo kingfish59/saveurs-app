@@ -1617,23 +1617,41 @@
         el.innerHTML = '';
         return;
       }
-      const items = snap.docs.map(d => d.data());
+      const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       el.innerHTML = `
         <div style="margin-top:20px">
           <div class="detail-section-title">Historique (${items.length} fois)</div>
           ${items.map(h => `
-            <div class="detail-history-item">
-              <div class="detail-history-date">${formatDate(h.date)}</div>
-              <div class="detail-history-info">
-                ${h.convives ? h.convives + ' convives' : ''}
-                ${h.guests ? ' · ' + h.guests : ''}
-                ${h.cookedByName ? ' · ' + h.cookedByName.split(' ')[0] : ''}
+            <div class="detail-history-item" style="align-items:flex-start">
+              <div style="flex:1">
+                <div class="detail-history-date">${formatDate(h.date)}</div>
+                <div class="detail-history-info">
+                  ${h.convives ? h.convives + ' convives' : ''}
+                  ${h.guests ? ' · ' + h.guests : ''}
+                  ${h.cookedByName ? ' · ' + h.cookedByName.split(' ')[0] : ''}
+                </div>
+                ${h.photoBase64 ? `<img src="${h.photoBase64}" style="width:100%;max-width:260px;border-radius:10px;margin-top:8px;object-fit:cover">` : ''}
               </div>
+              <button onclick="deleteHistoryEntry('${h.id}', '${recipeId}')" style="background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:4px;opacity:0.7;flex-shrink:0;margin-top:2px" title="Supprimer">🗑</button>
             </div>
           `).join('')}
         </div>
       `;
     } catch(e) { console.log('History error:', e); }
+  }
+
+  window.deleteHistoryEntry = async function(historyId, recipeId) {
+    if (!confirm('Supprimer cet enregistrement ?')) return;
+    try {
+      const gid = userGroupId || currentUser.uid;
+      const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      await deleteDoc(doc(db, 'groups', gid, 'history', historyId));
+      showToast('Enregistrement supprime');
+      loadRecipeHistory(recipeId);
+      loadStats();
+    } catch(e) {
+      showToast('Erreur : ' + e.message);
+    }
   }
 
   window.formatDate = function(dateStr) {
@@ -1655,7 +1673,7 @@
 
       const recipes = {};
       recipesSnap.docs.forEach(d => { recipes[d.id] = d.data(); });
-      const history = historySnap.docs.map(d => d.data());
+      const history = historySnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
       // Comptage par recette
       const counts = {};
@@ -1732,11 +1750,17 @@
           <div class="stats-section-title">Dernières préparations</div>
           ${recentHistory.map(h => `
             <div class="history-item">
-              <div class="history-recipe-name">${recipes[h.recipeId]?.name || 'Recette supprimée'}</div>
-              <div class="history-meta">
-                <span>📅 ${formatDate(h.date)}</span>
-                ${h.convives ? '<span>👥 ' + h.convives + ' convives</span>' : ''}
-                ${h.guests ? '<span>🧑 ' + h.guests + '</span>' : ''}
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                <div style="flex:1">
+                  <div class="history-recipe-name">${recipes[h.recipeId]?.name || 'Recette supprimée'}</div>
+                  <div class="history-meta">
+                    <span>📅 ${formatDate(h.date)}</span>
+                    ${h.convives ? '<span>👥 ' + h.convives + ' convives</span>' : ''}
+                    ${h.guests ? '<span>🧑 ' + h.guests + '</span>' : ''}
+                  </div>
+                  ${h.photoBase64 ? `<img src="${h.photoBase64}" style="width:100%;max-width:260px;border-radius:10px;margin-top:8px;object-fit:cover">` : ''}
+                </div>
+                <button onclick="deleteHistoryEntry('${h.id}', '${h.recipeId}')" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:4px;opacity:0.7;flex-shrink:0" title="Supprimer">🗑</button>
               </div>
             </div>
           `).join('')}
