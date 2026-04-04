@@ -1393,8 +1393,8 @@
       </div>
       ${ingredientsHTML}
       ${instructionsHTML}
-      <button class="btn-cook" onclick="openCookModal('" + id + "')">
-        J'ai cuisiné cette recette ✓
+      <button class="btn-cook" data-id="${id}" onclick="openCookModal(this.dataset.id)">
+        J'ai cuisiné cette recette
       </button>
     `;
     document.getElementById('detail-overlay').classList.add('open');
