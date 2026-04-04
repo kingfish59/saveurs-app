@@ -766,6 +766,61 @@
     }
     .btn-cook:active { opacity: 0.85; }
 
+    /* STATS */
+    .stats-section { margin-bottom: 24px; }
+    .stats-section-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 20px; font-weight: 400;
+      color: var(--gold); margin-bottom: 14px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(201,168,76,0.15);
+    }
+    .history-item {
+      background: var(--surface);
+      border: 1px solid rgba(201,168,76,0.12);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+    .history-recipe-name {
+      font-size: 14px; font-weight: 500;
+      color: var(--text); margin-bottom: 4px;
+    }
+    .history-meta {
+      font-size: 12px; color: var(--text3);
+      display: flex; gap: 12px; flex-wrap: wrap;
+    }
+    .stat-row {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(201,168,76,0.06);
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-row-name { font-size: 14px; color: var(--text2); flex: 1; }
+    .stat-row-value { font-size: 13px; color: var(--gold); font-weight: 500; }
+    .stat-box {
+      background: var(--surface);
+      border: 1px solid rgba(201,168,76,0.12);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      margin-bottom: 10px;
+    }
+
+    /* HISTORY IN DETAIL */
+    .detail-history-item {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(201,168,76,0.06);
+    }
+    .detail-history-item:last-child { border-bottom: none; }
+    .detail-history-date {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 16px; color: var(--gold);
+      flex-shrink: 0; min-width: 80px;
+    }
+    .detail-history-info { font-size: 13px; color: var(--text3); }
+
     /* SCROLLBAR */
     ::-webkit-scrollbar { width: 3px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -885,10 +940,11 @@
 
     <!-- STATS PAGE -->
     <div class="page" id="page-stats">
-      <div class="empty-state">
-        <div class="empty-icon">📊</div>
-        <div class="empty-title">Statistiques</div>
-        <div class="empty-text">Vos habitudes culinaires en chiffres.<br>Bientôt disponible.</div>
+      <div id="stats-content">
+        <div class="empty-state">
+          <div class="empty-icon">📊</div>
+          <div class="empty-title">Chargement...</div>
+        </div>
       </div>
     </div>
 
@@ -1481,6 +1537,153 @@
     document.getElementById('detail-overlay').classList.add('open');
   };
 
+  // -- HISTORIQUE DANS FICHE --
+  async function loadRecipeHistory(recipeId) {
+    try {
+      const gid = userGroupId || currentUser.uid;
+      const q = query(
+        collection(db, 'groups', gid, 'history'),
+        where('recipeId', '==', recipeId),
+        orderBy('date', 'desc'),
+        limit(10)
+      );
+      const snap = await getDocs(q);
+      const el = document.getElementById('detail-history-section');
+      if (!el) return;
+      if (snap.empty) {
+        el.innerHTML = '';
+        return;
+      }
+      const items = snap.docs.map(d => d.data());
+      el.innerHTML = `
+        <div style="margin-top:20px">
+          <div class="detail-section-title">Historique (${items.length} fois)</div>
+          ${items.map(h => `
+            <div class="detail-history-item">
+              <div class="detail-history-date">${formatDate(h.date)}</div>
+              <div class="detail-history-info">
+                ${h.convives ? h.convives + ' convives' : ''}
+                ${h.guests ? ' · ' + h.guests : ''}
+                ${h.cookedByName ? ' · ' + h.cookedByName.split(' ')[0] : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } catch(e) { console.log('History error:', e); }
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  // -- PAGE STATS --
+  async function loadStatsPage() {
+    const el = document.getElementById('stats-content');
+    if (!el) return;
+    try {
+      const gid = userGroupId || currentUser.uid;
+      const [recipesSnap, historySnap] = await Promise.all([
+        getDocs(getRecipesRef()),
+        getDocs(query(collection(db, 'groups', gid, 'history'), orderBy('date', 'desc')))
+      ]);
+
+      const recipes = {};
+      recipesSnap.docs.forEach(d => { recipes[d.id] = d.data(); });
+      const history = historySnap.docs.map(d => d.data());
+
+      // Comptage par recette
+      const counts = {};
+      const lastDates = {};
+      history.forEach(h => {
+        counts[h.recipeId] = (counts[h.recipeId] || 0) + 1;
+        if (!lastDates[h.recipeId] || h.date > lastDates[h.recipeId]) {
+          lastDates[h.recipeId] = h.date;
+        }
+      });
+
+      // Top recettes
+      const topRecipes = Object.entries(counts)
+        .sort((a,b) => b[1] - a[1])
+        .slice(0, 5);
+
+      // Recettes oubliées (pas cuisinées depuis > 60j ou jamais)
+      const now = new Date();
+      const forgotten = recipesSnap.docs
+        .filter(d => {
+          const last = lastDates[d.id];
+          if (!last) return true;
+          const diff = (now - new Date(last)) / (1000 * 60 * 60 * 24);
+          return diff > 60;
+        })
+        .slice(0, 5);
+
+      // 3 dernières préparations
+      const recentHistory = history.slice(0, 5);
+
+      el.innerHTML = `
+        <div class="stats-section">
+          <div class="stats-section-title">Vue d'ensemble</div>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-number">${recipesSnap.size}</div>
+              <div class="stat-label">Recettes</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number">${history.length}</div>
+              <div class="stat-label">Préparations</div>
+            </div>
+          </div>
+        </div>
+
+        ${topRecipes.length > 0 ? `
+        <div class="stats-section">
+          <div class="stats-section-title">Les plus cuisinées</div>
+          <div class="stat-box">
+            ${topRecipes.map(([id, count]) => `
+              <div class="stat-row">
+                <div class="stat-row-name">${recipes[id]?.name || 'Recette supprimée'}</div>
+                <div class="stat-row-value">${count}x</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>` : ''}
+
+        ${forgotten.length > 0 ? `
+        <div class="stats-section">
+          <div class="stats-section-title">Oubliées depuis longtemps</div>
+          <div class="stat-box">
+            ${forgotten.map(d => `
+              <div class="stat-row">
+                <div class="stat-row-name">${d.data().name}</div>
+                <div class="stat-row-value">${lastDates[d.id] ? formatDate(lastDates[d.id]) : 'Jamais'}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>` : ''}
+
+        ${recentHistory.length > 0 ? `
+        <div class="stats-section">
+          <div class="stats-section-title">Dernières préparations</div>
+          ${recentHistory.map(h => `
+            <div class="history-item">
+              <div class="history-recipe-name">${recipes[h.recipeId]?.name || 'Recette supprimée'}</div>
+              <div class="history-meta">
+                <span>📅 ${formatDate(h.date)}</span>
+                ${h.convives ? '<span>👥 ' + h.convives + ' convives</span>' : ''}
+                ${h.guests ? '<span>🧑 ' + h.guests + '</span>' : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>` : ''}
+      `;
+    } catch(e) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Aucune donnée</div></div>';
+    }
+  }
+
   window.closeDetail = () => {
     document.getElementById('detail-overlay').classList.remove('open');
   };
@@ -1684,6 +1887,7 @@
   };
 
   window.switchPage = (page) => {
+    if (page === 'stats') loadStatsPage();
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.getElementById('page-' + page).classList.add('active');
