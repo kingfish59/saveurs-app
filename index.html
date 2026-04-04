@@ -42,7 +42,7 @@
       overflow: hidden;
     }
 
-    /* ── SPLASH ── */
+    /* -- SPLASH -- */
     #splash {
       position: fixed; inset: 0;
       background: var(--bg);
@@ -73,7 +73,7 @@
       margin: 8px 0;
     }
 
-    /* ── AUTH SCREEN ── */
+    /* -- AUTH SCREEN -- */
     #auth-screen {
       position: fixed; inset: 0;
       background: var(--bg);
@@ -140,7 +140,7 @@
       text-align: center; letter-spacing: 1px;
     }
 
-    /* ── APP SHELL ── */
+    /* -- APP SHELL -- */
     #app {
       position: fixed; inset: 0;
       display: flex; flex-direction: column;
@@ -949,7 +949,7 @@
     <div class="form-group">
       <label class="form-label">Catégorie</label>
       <select class="form-input compact" id="r-category">
-        <option value="">— Choisir —</option>
+        <option value="">-- Choisir --</option>
         <option>Entrée</option>
         <option>Plat</option>
         <option>Soupe / Potage</option>
@@ -962,7 +962,7 @@
     <div class="form-group">
       <label class="form-label">Type de recette</label>
       <select class="form-input compact" id="r-type">
-        <option value="">— Choisir —</option>
+        <option value="">-- Choisir --</option>
         <option value="minute">Recette minute</option>
         <option value="avance">Peut se préparer à l'avance et réchauffer</option>
       </select>
@@ -1015,7 +1015,7 @@
       </p>
       <div id="current-group-info"></div>
       <button class="btn-primary" onclick="createGroup()">Créer un groupe</button>
-      <div style="text-align:center;margin:16px 0;color:var(--text3);font-size:12px">— ou —</div>
+      <div style="text-align:center;margin:16px 0;color:var(--text3);font-size:12px">-- ou --</div>
       <div class="form-group">
         <label class="form-label">Rejoindre avec un code</label>
         <input class="form-input" id="join-code" type="text" placeholder="Code à 6 lettres" maxlength="6" style="text-transform:uppercase;letter-spacing:4px;text-align:center">
@@ -1085,7 +1085,7 @@
   import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { getFirestore, collection, doc, addDoc, getDocs, getDoc, setDoc, updateDoc, query, orderBy, limit, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  // ── CONFIG FIREBASE ──
+  // -- CONFIG FIREBASE --
   const firebaseConfig = {
     apiKey: "AIzaSyAMSYsWcUaGXZFjLD_16v7c5q5EIJHycVU",
     authDomain: "recettes-app-59830.firebaseapp.com",
@@ -1099,17 +1099,17 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  // ── STATE ──
+  // -- STATE --
   let currentUser = null;
   let currentRating = 0;
   let userGroupId = null;
 
-  // ── SPLASH ──
+  // -- SPLASH --
   setTimeout(() => {
     document.getElementById('splash').classList.add('hidden');
   }, 1800);
 
-  // ── INIT AUTH : gérer redirection puis écouter l'état ──
+  // -- INIT AUTH : gérer redirection puis écouter l'état --
   async function initAuth() {
     try {
       await getRedirectResult(auth);
@@ -1147,7 +1147,7 @@
     }
   }
 
-  // ── GOOGLE SIGN IN ──
+  // -- GOOGLE SIGN IN --
   document.getElementById('btn-google-signin').onclick = async () => {
     try {
       const provider = new GoogleAuthProvider();
@@ -1169,13 +1169,13 @@
     }
   };
 
-  // ── SIGN OUT ──
+  // -- SIGN OUT --
   document.getElementById('btn-signout').onclick = async () => {
     await signOut(auth);
     userGroupId = null;
   };
 
-  // ── GROUPE ──
+  // -- GROUPE --
   async function loadUserGroup() {
     if (!currentUser) return;
     const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
@@ -1233,7 +1233,7 @@
     openModal('modal-group');
   };
 
-  // ── RECETTES ──
+  // -- RECETTES --
   function getRecipesRef() {
     const gid = userGroupId || currentUser.uid;
     return collection(db, 'groups', gid, 'recipes');
@@ -1343,7 +1343,7 @@
     return map[cat] || '🍴';
   }
 
-  // ── DETAIL RECETTE ──
+  // -- DETAIL RECETTE --
   let allRecipes = [];
 
   window.openRecipe = async (id) => {
@@ -1404,7 +1404,7 @@
     document.getElementById('detail-overlay').classList.remove('open');
   };
 
-  // ── SAVE RECIPE ──
+  // -- SAVE RECIPE --
   window.saveRecipe = async () => {
     const name = document.getElementById('r-name').value.trim();
     if (!name) { showToast('Le nom est obligatoire'); return; }
@@ -1439,8 +1439,8 @@
     setRating(0);
   }
 
-  // ── UI HELPERS ──
-  // ── HISTORIQUE ──
+  // -- UI HELPERS --
+  // -- HISTORIQUE --
   window.openCookModal = (recipeId) => {
     document.getElementById('cook-recipe-id').value = recipeId;
     // Date par défaut = aujourd'hui
