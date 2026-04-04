@@ -1533,7 +1533,9 @@
       <button class="btn-cook" data-id="${id}" onclick="openCookModal(this.dataset.id)">
         J'ai cuisiné cette recette
       </button>
-    `;
+    
+      <div id="detail-history-section"></div>
+    `
     document.getElementById('detail-overlay').classList.add('open');
     // Charger l'historique
     window.loadRecipeHistory(id);
