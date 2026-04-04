@@ -1535,6 +1535,8 @@
       </button>
     `;
     document.getElementById('detail-overlay').classList.add('open');
+    // Charger l'historique
+    window.loadRecipeHistory(id);
   };
 
   // -- HISTORIQUE DANS FICHE --
