@@ -1072,6 +1072,14 @@
         <button class="star-btn" data-val="5" onclick="setRating(5)">★</button>
       </div>
     </div>
+    <div class="form-group">
+      <label class="form-label">Coût</label>
+      <div style="display:flex;gap:10px">
+        <button type="button" class="cost-btn" data-val="1" onclick="setCost(1)" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">€</button>
+        <button type="button" class="cost-btn" data-val="2" onclick="setCost(2)" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">€€</button>
+        <button type="button" class="cost-btn" data-val="3" onclick="setCost(3)" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">€€€</button>
+      </div>
+    </div>
 
     <button class="btn-primary" onclick="saveRecipe()">Enregistrer la recette</button>
     <button class="btn-secondary" onclick="closeModal('modal-add-recipe')">Annuler</button>
@@ -1137,6 +1145,14 @@
         <button class="star-btn" data-val="3" onclick="setEditRating(3)">★</button>
         <button class="star-btn" data-val="4" onclick="setEditRating(4)">★</button>
         <button class="star-btn" data-val="5" onclick="setEditRating(5)">★</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Coût</label>
+      <div style="display:flex;gap:10px">
+        <button type="button" class="edit-cost-btn" data-val="1" onclick="setEditCost(1)" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">€</button>
+        <button type="button" class="edit-cost-btn" data-val="2" onclick="setEditCost(2)" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">€€</button>
+        <button type="button" class="edit-cost-btn" data-val="3" onclick="setEditCost(3)" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">€€€</button>
       </div>
     </div>
 
@@ -1246,9 +1262,11 @@
   // -- STATE --
   let currentUser = null;
   let currentRating = 0;
+  let currentCost = 0;
   let userGroupId = null;
   let currentRecipeId = null;
   let currentEditRating = 0;
+  let currentEditCost = 0;
 
   // -- SPLASH --
   setTimeout(() => {
@@ -1455,6 +1473,7 @@
           <div class="recipe-meta">
             ${r.category ? `<span class="recipe-tag">${r.category}</span>` : ''}
             ${stars ? `<span class="recipe-stars">${stars}</span>` : ''}
+            ${r.cost ? `<span style="color:var(--gold);font-size:11px;font-weight:600">${'\u20ac'.repeat(r.cost)}</span>` : ''}
           </div>
           ${r.prepTime ? `<div class="recipe-tag" style="color:var(--text3)">⏱ ${r.prepTime}</div>` : ''}
         </div>
@@ -1536,6 +1555,7 @@
         ${r.prepTime ? `<span class="detail-badge">⏱ ${r.prepTime}</span>` : ''}
         ${r.servings ? `<span class="detail-badge">👥 ${r.servings} pers.</span>` : ''}
         ${typeLabel ? `<span class="detail-badge">${typeLabel}</span>` : ''}
+        ${r.cost ? `<span class="detail-badge" style="color:var(--gold);border-color:rgba(201,168,76,0.3);background:var(--gold-dim)">${'\u20ac'.repeat(r.cost)}</span>` : ''}
         ${stars ? `<div class="detail-stars">${stars}</div>` : ''}
       </div>
       ${ingredientsHTML}
@@ -1716,6 +1736,7 @@
         ingredients: document.getElementById('r-ingredients').value.trim(),
         instructions: document.getElementById('r-instructions').value.trim(),
         rating: currentRating,
+        cost: currentCost || null,
         createdBy: currentUser.uid,
         createdAt: serverTimestamp()
       });
@@ -1735,6 +1756,11 @@
       if (el) el.value = '';
     });
     setRating(0);
+    setCost(0);
+    currentCost = 0;
+    document.getElementById('r-url') && (document.getElementById('r-url').value = '');
+    const statusEl = document.getElementById('import-status');
+    if (statusEl) statusEl.textContent = '';
   }
 
   // -- UI HELPERS --
@@ -1766,6 +1792,7 @@
     document.getElementById('e-ingredients').value = r.ingredients || '';
     document.getElementById('e-instructions').value = r.instructions || '';
     setEditRating(r.rating || 0);
+    setEditCost(r.cost || 0);
     openModal('modal-edit-recipe');
   };
 
@@ -1797,6 +1824,7 @@
         ingredients: document.getElementById('e-ingredients').value.trim(),
         instructions: document.getElementById('e-instructions').value.trim(),
         rating: currentEditRating,
+        cost: currentEditCost || null,
       });
       closeModal('modal-edit-recipe');
       showToast('Recette modifiée !');
@@ -1939,6 +1967,28 @@
     currentRating = val;
     document.querySelectorAll('.star-btn').forEach(b => {
       b.classList.toggle('active', parseInt(b.dataset.val) <= val);
+    });
+  };
+
+  window.setCost = (val) => {
+    currentCost = val;
+    document.querySelectorAll('.cost-btn').forEach(b => {
+      const active = parseInt(b.dataset.val) === val;
+      b.style.background = active ? 'var(--gold-dim)' : 'var(--surface)';
+      b.style.borderColor = active ? 'rgba(201,168,76,0.6)' : 'rgba(201,168,76,0.2)';
+      b.style.color = active ? 'var(--gold)' : 'var(--text3)';
+      b.style.fontWeight = active ? '600' : '400';
+    });
+  };
+
+  window.setEditCost = (val) => {
+    currentEditCost = val;
+    document.querySelectorAll('.edit-cost-btn').forEach(b => {
+      const active = parseInt(b.dataset.val) === val;
+      b.style.background = active ? 'var(--gold-dim)' : 'var(--surface)';
+      b.style.borderColor = active ? 'rgba(201,168,76,0.6)' : 'rgba(201,168,76,0.2)';
+      b.style.color = active ? 'var(--gold)' : 'var(--text3)';
+      b.style.fontWeight = active ? '600' : '400';
     });
   };
 
