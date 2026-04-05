@@ -2865,6 +2865,21 @@ const QUOTES = [
   };
 
   window.openModal = (id) => document.getElementById(id).classList.add('open');
+  
+  // Debug
+  window.debugApp = async () => {
+    console.log('userGroupId:', userGroupId);
+    console.log('currentUser uid:', currentUser?.uid);
+    try {
+      const gid = userGroupId || currentUser.uid;
+      console.log('gid utilisé:', gid);
+      const snap = await getDocs(collection(db, 'groups', gid, 'recipes'));
+      console.log('Nombre de recettes trouvées:', snap.docs.length);
+      snap.docs.slice(0,3).forEach(d => console.log('recette:', d.data().name));
+    } catch(e) {
+      console.error('Erreur:', e.message);
+    }
+  };
   window.closeModal = (id) => document.getElementById(id).classList.remove('open');
   window.openAddRecipeModal = () => openModal('modal-add-recipe');
 
