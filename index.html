@@ -821,6 +821,66 @@
     }
     .detail-history-info { font-size: 13px; color: var(--text3); }
 
+    /* CROP MODAL */
+    #crop-modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 500;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+    }
+    #crop-modal-overlay.open { display: flex; }
+    #crop-container {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      touch-action: none;
+    }
+    #crop-img {
+      max-width: 100%;
+      max-height: 100%;
+      display: block;
+      user-select: none;
+      pointer-events: none;
+    }
+    #crop-selection {
+      position: absolute;
+      border: 2px solid var(--gold);
+      background: rgba(201,168,76,0.15);
+      pointer-events: none;
+      display: none;
+    }
+    #crop-overlay-top, #crop-overlay-bottom, #crop-overlay-left, #crop-overlay-right {
+      position: absolute;
+      background: rgba(0,0,0,0.5);
+      pointer-events: none;
+    }
+
+    /* PRINT */
+    @media print {
+      body * { visibility: hidden; }
+      #print-area, #print-area * { visibility: visible; }
+      #print-area {
+        position: fixed; inset: 0;
+        background: white; color: black;
+        padding: 20px; font-family: Georgia, serif;
+        overflow: visible;
+      }
+      .print-recipe { page-break-after: always; margin-bottom: 40px; }
+      .print-recipe:last-child { page-break-after: avoid; }
+      .print-recipe-name { font-size: 22px; font-weight: bold; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 6px; }
+      .print-recipe-meta { font-size: 12px; color: #666; margin-bottom: 12px; }
+      .print-section { font-size: 14px; font-weight: bold; margin: 12px 0 6px; }
+      .print-text { font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
+    }
+
     /* SCROLLBAR */
     ::-webkit-scrollbar { width: 3px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -994,7 +1054,26 @@
         </div>
       </div>
 
-      <button class="btn-signout" id="btn-signout">Se déconnecter</button>
+      <div class="profile-section" style="margin-top:24px">
+        <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:12px">Exporter mes recettes</div>
+        <div style="display:flex;gap:10px">
+          <button onclick="exportPDF()" style="flex:1;padding:13px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+            🖨️ PDF
+          </button>
+          <button onclick="exportJSON()" style="flex:1;padding:13px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+            📤 Partager
+          </button>
+        </div>
+        <div style="margin-top:10px">
+          <label style="display:block;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Importer un fichier partagé</label>
+          <input type="file" id="import-json-input" accept=".json" style="display:none" onchange="importJSON(this)">
+          <button onclick="document.getElementById('import-json-input').click()" style="width:100%;padding:13px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--text2);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+            📥 Importer des recettes
+          </button>
+        </div>
+      </div>
+
+      <button class="btn-signout" id="btn-signout" style="margin-top:24px">Se déconnecter</button>
     </div>
 
   </div>
@@ -1030,6 +1109,21 @@
 
 </div>
 
+<!-- CROP MODAL -->
+<div id="crop-modal-overlay">
+  <div style="color:var(--text2);font-size:13px;text-align:center;margin-bottom:12px;letter-spacing:0.5px">
+    Dessine un rectangle sur la zone à importer
+  </div>
+  <div id="crop-container">
+    <img id="crop-img" src="" alt="">
+    <div id="crop-selection"></div>
+  </div>
+  <div style="display:flex;gap:12px;width:100%;margin-top:16px">
+    <button onclick="closeCropModal()" style="flex:1;padding:14px;background:transparent;border:1px solid rgba(201,168,76,0.3);border-radius:var(--radius-sm);color:var(--text2);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer">Annuler</button>
+    <button onclick="confirmCrop()" id="btn-confirm-crop" style="flex:2;padding:14px;background:var(--gold);border:none;border-radius:var(--radius-sm);color:var(--bg);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer">Importer cette zone</button>
+  </div>
+</div>
+
 <!-- MODAL AJOUT RECETTE -->
 <div class="modal-overlay" id="modal-add-recipe">
   <div class="modal">
@@ -1043,7 +1137,7 @@
         <button type="button" onclick="importFromUrl()" id="btn-import-url" style="background:var(--gold);border:none;border-radius:var(--radius-sm);padding:9px 16px;color:var(--bg);font-size:13px;cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif">URL</button>
       </div>
       <div style="margin-top:8px">
-        <input type="file" id="r-photo-import" accept="image/*" capture="environment" style="display:none" onchange="importFromPhoto(this)">
+        <input type="file" id="r-photo-import" accept="image/*" style="display:none" onchange="openCropModal(this)">
         <button type="button" onclick="document.getElementById('r-photo-import').click()" id="btn-import-photo" style="width:100%;background:var(--surface);border:1px solid rgba(201,168,76,0.3);border-radius:var(--radius-sm);padding:10px 16px;color:var(--gold);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px">
           <span style="font-size:16px">📷</span> Importer depuis une photo
         </button>
@@ -2106,9 +2200,121 @@ const QUOTES = [
     }
   }
 
+  // -- CROP TOOL --
+  let cropOriginalFile = null;
+  let cropStart = null;
+  let cropEnd = null;
+  let cropRect = null;
+
+  window.openCropModal = (input) => {
+    if (!input.files || !input.files[0]) return;
+    cropOriginalFile = input.files[0];
+    cropStart = null; cropEnd = null; cropRect = null;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = document.getElementById('crop-img');
+      img.src = e.target.result;
+      document.getElementById('crop-selection').style.display = 'none';
+      document.getElementById('crop-modal-overlay').classList.add('open');
+    };
+    reader.readAsDataURL(cropOriginalFile);
+  };
+
+  window.closeCropModal = () => {
+    document.getElementById('crop-modal-overlay').classList.remove('open');
+    cropOriginalFile = null;
+    document.getElementById('r-photo-import').value = '';
+  };
+
+  const cropContainer = document.getElementById('crop-container') || { addEventListener: () => {} };
+
+  function getCropCoords(e) {
+    const container = document.getElementById('crop-container');
+    const img = document.getElementById('crop-img');
+    const imgRect = img.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: Math.max(0, Math.min(clientX - imgRect.left, imgRect.width)),
+      y: Math.max(0, Math.min(clientY - imgRect.top, imgRect.height)),
+      imgRect
+    };
+  }
+
+  function drawSelection() {
+    if (!cropStart || !cropEnd) return;
+    const sel = document.getElementById('crop-selection');
+    const img = document.getElementById('crop-img');
+    const imgRect = img.getBoundingClientRect();
+    const x = Math.min(cropStart.x, cropEnd.x);
+    const y = Math.min(cropStart.y, cropEnd.y);
+    const w = Math.abs(cropEnd.x - cropStart.x);
+    const h = Math.abs(cropEnd.y - cropStart.y);
+    const containerRect = document.getElementById('crop-container').getBoundingClientRect();
+    const offsetX = imgRect.left - containerRect.left;
+    const offsetY = imgRect.top - containerRect.top;
+    sel.style.display = 'block';
+    sel.style.left = (offsetX + x) + 'px';
+    sel.style.top = (offsetY + y) + 'px';
+    sel.style.width = w + 'px';
+    sel.style.height = h + 'px';
+    cropRect = { x, y, w, h, imgRect };
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const cont = document.getElementById('crop-container');
+    const onStart = (e) => {
+      if (!document.getElementById('crop-modal-overlay').classList.contains('open')) return;
+      e.preventDefault();
+      const c = getCropCoords(e);
+      cropStart = c; cropEnd = c;
+      drawSelection();
+    };
+    const onMove = (e) => {
+      if (!cropStart) return;
+      if (!document.getElementById('crop-modal-overlay').classList.contains('open')) return;
+      e.preventDefault();
+      cropEnd = getCropCoords(e);
+      drawSelection();
+    };
+    const onEnd = () => { if (!cropStart) return; };
+    cont.addEventListener('mousedown', onStart);
+    cont.addEventListener('mousemove', onMove);
+    cont.addEventListener('mouseup', onEnd);
+    cont.addEventListener('touchstart', onStart, { passive: false });
+    cont.addEventListener('touchmove', onMove, { passive: false });
+    cont.addEventListener('touchend', onEnd);
+  });
+
+  window.confirmCrop = async () => {
+    const btn = document.getElementById('btn-confirm-crop');
+    btn.textContent = 'Analyse...';
+    btn.disabled = true;
+    let imageData;
+    if (cropRect && cropRect.w > 10 && cropRect.h > 10) {
+      // Recadrer la zone sélectionnée
+      const img = document.getElementById('crop-img');
+      const scaleX = img.naturalWidth / cropRect.imgRect.width;
+      const scaleY = img.naturalHeight / cropRect.imgRect.height;
+      const canvas = document.createElement('canvas');
+      canvas.width = cropRect.w * scaleX;
+      canvas.height = cropRect.h * scaleY;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, cropRect.x * scaleX, cropRect.y * scaleY, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+      imageData = canvas.toDataURL('image/jpeg', 0.85);
+    } else {
+      // Pas de sélection, utiliser toute la photo
+      imageData = await compressImage(cropOriginalFile, 1200, 0.85);
+    }
+    document.getElementById('crop-modal-overlay').classList.remove('open');
+    await importFromPhoto(imageData);
+    btn.textContent = 'Importer cette zone';
+    btn.disabled = false;
+  };
+
   // -- IMPORT DEPUIS PHOTO --
   window.importFromPhoto = async (input) => {
-    if (!input.files || !input.files[0]) return;
+    // Accepte soit un File input soit directement un string base64
     const statusEl = document.getElementById('import-status');
     const btnEl = document.getElementById('btn-import-photo');
     statusEl.style.color = 'var(--text3)';
@@ -2116,7 +2322,7 @@ const QUOTES = [
     btnEl.disabled = true;
     btnEl.innerHTML = '<span>⏳</span> Analyse...';
     try {
-      const base64 = await compressImage(input.files[0], 1200, 0.85);
+      const base64 = typeof input === 'string' ? input : await compressImage(input.files[0], 1200, 0.85);
       const response = await fetch('/api/import-recipe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2222,6 +2428,69 @@ const QUOTES = [
       b.style.color = active ? 'var(--gold)' : 'var(--text3)';
       b.style.fontWeight = active ? '600' : '400';
     });
+  };
+
+  // -- EXPORT PDF --
+  window.exportPDF = () => {
+    if (!allRecipes || allRecipes.length === 0) { showToast('Aucune recette a exporter'); return; }
+    let existing = document.getElementById('print-area');
+    if (existing) existing.remove();
+    const div = document.createElement('div');
+    div.id = 'print-area';
+    div.innerHTML = allRecipes.map(r => {
+      const d = r.data;
+      const stars = d.rating ? '★'.repeat(d.rating) : '';
+      const cost = d.cost ? '€'.repeat(d.cost) : '';
+      return `<div class="print-recipe">
+        <div class="print-recipe-name">${d.name || ''}</div>
+        <div class="print-recipe-meta">${[d.category, d.prepTime ? d.prepTime + ' min' : '', d.servings ? d.servings + ' pers.' : '', stars, cost].filter(Boolean).join(' · ')}</div>
+        ${d.ingredients ? '<div class="print-section">Ingrédients</div><div class="print-text">' + d.ingredients + '</div>' : ''}
+        ${d.instructions ? '<div class="print-section">Instructions</div><div class="print-text">' + d.instructions + '</div>' : ''}
+      </div>`;
+    }).join('');
+    document.body.appendChild(div);
+    window.print();
+    setTimeout(() => div.remove(), 1000);
+  };
+
+  // -- EXPORT JSON --
+  window.exportJSON = () => {
+    if (!allRecipes || allRecipes.length === 0) { showToast('Aucune recette a exporter'); return; }
+    const data = allRecipes.map(r => r.data);
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'saveurs-recettes.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Export téléchargé !');
+  };
+
+  // -- IMPORT JSON --
+  window.importJSON = async (input) => {
+    if (!input.files || !input.files[0]) return;
+    try {
+      const text = await input.files[0].text();
+      const recipes = JSON.parse(text);
+      if (!Array.isArray(recipes)) { showToast('Fichier invalide'); return; }
+      const gid = userGroupId || currentUser.uid;
+      let count = 0;
+      for (const r of recipes) {
+        if (!r.name) continue;
+        await addDoc(collection(db, 'groups', gid, 'recipes'), {
+          ...r,
+          importedAt: serverTimestamp()
+        });
+        count++;
+      }
+      showToast(count + ' recettes importées !');
+      await loadRecentRecipes();
+      loadStats();
+    } catch(e) {
+      showToast('Erreur : ' + e.message);
+    }
+    input.value = '';
   };
 
   window.switchPage = (page) => {
