@@ -1838,7 +1838,7 @@ const QUOTES = [
       const stars = r.rating ? '★'.repeat(r.rating) : '';
       const count = cookCounts[id] || 0;
       const isCrown = topRecipeId === id && count > 0;
-      return '<div class="recipe-card" onclick="openRecipe(' + JSON.stringify(id) + ')" style="position:relative">'
+      return '<div class="recipe-card" onclick="openRecipe(\'' + id + '\')" style="position:relative">'
         + (isCrown ? '<span style="position:absolute;top:-6px;right:10px;font-size:18px;z-index:2" title="Recette la plus cuisinee">👑</span>' : '')
         + '<div class="recipe-thumb-placeholder">' + getCategoryEmoji(r.category) + '</div>'
         + '<div class="recipe-info">'
