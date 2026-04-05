@@ -1554,7 +1554,7 @@ const QUOTES = [
         initUserUI(user);
         await loadUserGroup();
         await loadGuests();
-        loadCookCounts();
+        await loadCookCounts();
         // Sauvegarder le nom pour l'affichage dans les groupes
         if (user.displayName || user.email) {
           setDoc(doc(db, 'users', user.uid), {
@@ -1562,8 +1562,8 @@ const QUOTES = [
             email: user.email
           }, { merge: true }).catch(() => {});
         }
-        loadStats();
-        loadRecentRecipes();
+        await loadStats();
+        await loadRecentRecipes();
       } else {
         document.getElementById('auth-screen').classList.remove('hidden');
         document.getElementById('app').classList.add('hidden');
