@@ -1618,9 +1618,28 @@ const QUOTES = [
   // -- GROUPE --
   async function loadUserGroup() {
     if (!currentUser) return;
-    const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-    if (userDoc.exists() && userDoc.data().groupId) {
-      userGroupId = userDoc.data().groupId;
+    try {
+      const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        if (data.groupId && data.groupId !== null) {
+          userGroupId = data.groupId;
+        } else {
+          // Pas de groupe, utiliser l'uid comme groupe perso
+          userGroupId = null;
+        }
+      } else {
+        // Document utilisateur inexistant - créer avec uid comme groupe par défaut
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          displayName: currentUser.displayName || currentUser.email,
+          email: currentUser.email,
+          groupId: currentUser.uid
+        }, { merge: true });
+        userGroupId = currentUser.uid;
+      }
+    } catch(e) {
+      console.error('loadUserGroup error:', e);
+      userGroupId = currentUser.uid;
     }
   }
 
