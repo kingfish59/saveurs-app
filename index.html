@@ -1030,6 +1030,10 @@
 
     <!-- STATS PAGE -->
     <div class="page" id="page-stats">
+      <div style="position:relative;margin-bottom:16px">
+        <input class="form-input compact" id="stats-guest-search" type="text" placeholder="🔍 Rechercher un invité..." oninput="searchByGuest()" style="width:100%">
+      </div>
+      <div id="stats-guest-results" style="display:none;margin-bottom:20px"></div>
       <div id="stats-content">
         <div class="empty-state">
           <div class="empty-icon">📊</div>
@@ -1046,6 +1050,13 @@
       <div class="profile-email" id="profile-email"></div>
 
       <div class="profile-section">
+        <div class="profile-item" onclick="openModal('modal-params')">
+          <div class="profile-item-icon">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+          </div>
+          <div class="profile-item-text">Mes invités</div>
+          <div class="profile-item-arrow">›</div>
+        </div>
         <div class="profile-item" onclick="openGroupModal()">
           <div class="profile-item-icon">
             <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
@@ -1125,8 +1136,7 @@
         </button>
       </div>
       <div id="import-status" style="font-size:12px;color:var(--text3);margin-top:6px"></div>
-    </div>
-    <div style="margin-top:8px;margin-bottom:16px">
+      <div style="margin-top:8px">
         <input type="file" id="import-json-input" accept=".json" style="display:none" onchange="importJSON(this)">
         <button type="button" onclick="document.getElementById('import-json-input').click()" style="width:100%;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);padding:10px 16px;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
           📥 Importer un fichier partagé
@@ -1278,6 +1288,20 @@
   </div>
 </div>
 
+<!-- MODAL PARAMS INVITÉS -->
+<div class="modal-overlay" id="modal-params">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Mes invités</div>
+    <div id="params-guests-list" style="margin-bottom:16px"></div>
+    <div style="display:flex;gap:8px">
+      <input class="form-input compact" id="params-guest-input" type="text" placeholder="Prénom..." style="flex:1" onkeydown="if(event.key==='Enter')addGuest()">
+      <button onclick="addGuest()" style="background:var(--gold);border:none;border-radius:var(--radius-sm);padding:9px 16px;color:var(--bg);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap">Ajouter</button>
+    </div>
+    <button class="btn-secondary" style="margin-top:16px" onclick="closeModal('modal-params')">Fermer</button>
+  </div>
+</div>
+
 <!-- MODAL GROUPE FAMILLE -->
 <div class="modal-overlay" id="modal-group">
   <div class="modal">
@@ -1335,8 +1359,9 @@
     </div>
     <div class="form-group">
       <label class="form-label">Invités</label>
-      <input class="form-input" id="cook-guests" type="text" placeholder="Ex: Marie, Pierre, Sophie...">
-      <div style="font-size:11px;color:var(--text3);margin-top:6px">Séparez les noms par des virgules</div>
+      <div id="cook-guests-buttons" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
+      <div id="cook-guests-empty" style="font-size:12px;color:var(--text3);display:none">Aucun invité enregistré — ajoutez-en dans Profil → Mes invités</div>
+      <input type="hidden" id="cook-guests">
     </div>
     <div class="form-group">
       <label class="form-label">Photo du repas</label>
@@ -1513,6 +1538,7 @@ const QUOTES = [
         document.getElementById('app').classList.remove('hidden');
         initUserUI(user);
         await loadUserGroup();
+        await loadGuests();
         loadStats();
         loadRecentRecipes();
       } else {
@@ -1855,6 +1881,137 @@ const QUOTES = [
       showToast('Erreur : ' + e.message);
     }
   }
+
+  // -- GESTION INVITÉS --
+  let allGuests = [];
+
+  async function loadGuests() {
+    try {
+      const gid = userGroupId || currentUser.uid;
+      const snap = await getDocs(collection(db, 'groups', gid, 'guests'));
+      allGuests = snap.docs.map(d => ({ id: d.id, name: d.data().name }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    } catch(e) { allGuests = []; }
+  }
+
+  function renderGuestParams() {
+    const list = document.getElementById('params-guests-list');
+    if (!list) return;
+    if (allGuests.length === 0) {
+      list.innerHTML = '<div style="font-size:13px;color:var(--text3);margin-bottom:12px">Aucun invité enregistré.</div>';
+      return;
+    }
+    list.innerHTML = allGuests.map(g => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(201,168,76,0.08)">
+        <span style="font-size:14px;color:var(--text)">${g.name}</span>
+        <button onclick="deleteGuest('${g.id}')" style="background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:4px;opacity:0.7">🗑</button>
+      </div>
+    `).join('');
+  }
+
+  function renderGuestButtons() {
+    const wrap = document.getElementById('cook-guests-buttons');
+    const empty = document.getElementById('cook-guests-empty');
+    if (!wrap) return;
+    if (allGuests.length === 0) {
+      wrap.style.display = 'none';
+      if (empty) empty.style.display = 'block';
+      return;
+    }
+    wrap.style.display = 'flex';
+    if (empty) empty.style.display = 'none';
+    wrap.innerHTML = allGuests.map(g => `
+      <button type="button" class="guest-toggle-btn" data-name="${g.name}"
+        onclick="toggleGuest(this)"
+        style="padding:8px 14px;border-radius:20px;border:1px solid rgba(201,168,76,0.3);background:var(--surface);color:var(--text3);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all 0.15s;white-space:nowrap">
+        ${g.name}
+      </button>
+    `).join('');
+  }
+
+  window.toggleGuest = (btn) => {
+    const active = btn.classList.toggle('active');
+    btn.style.background = active ? 'var(--gold-dim)' : 'var(--surface)';
+    btn.style.borderColor = active ? 'rgba(201,168,76,0.6)' : 'rgba(201,168,76,0.3)';
+    btn.style.color = active ? 'var(--gold)' : 'var(--text3)';
+    btn.style.fontWeight = active ? '600' : '400';
+    // Mettre à jour le champ hidden
+    const selected = Array.from(document.querySelectorAll('.guest-toggle-btn.active'))
+      .map(b => b.dataset.name).join(', ');
+    document.getElementById('cook-guests').value = selected;
+  };
+
+  window.addGuest = async () => {
+    const input = document.getElementById('params-guest-input');
+    const name = input.value.trim();
+    if (!name) return;
+    try {
+      const gid = userGroupId || currentUser.uid;
+      await addDoc(collection(db, 'groups', gid, 'guests'), { name });
+      input.value = '';
+      await loadGuests();
+      renderGuestParams();
+      showToast(name + ' ajouté');
+    } catch(e) { showToast('Erreur : ' + e.message); }
+  };
+
+  window.deleteGuest = async (guestId) => {
+    if (!confirm('Supprimer cet invité ?')) return;
+    try {
+      const gid = userGroupId || currentUser.uid;
+      const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      await deleteDoc(doc(db, 'groups', gid, 'guests', guestId));
+      await loadGuests();
+      renderGuestParams();
+      showToast('Invité supprimé');
+    } catch(e) { showToast('Erreur : ' + e.message); }
+  };
+
+  // Ouvrir modal params → charger et afficher invités
+  const origOpenModal = window.openModal;
+  window.openModal = (id) => {
+    origOpenModal(id);
+    if (id === 'modal-params') renderGuestParams();
+    if (id === 'modal-cook') {
+      renderGuestButtons();
+      // Reset sélection
+      document.getElementById('cook-guests').value = '';
+    }
+  };
+
+  // -- RECHERCHE PAR INVITÉ DANS STATS --
+  window.searchByGuest = async () => {
+    const q = normalize(document.getElementById('stats-guest-search').value);
+    const resultsEl = document.getElementById('stats-guest-results');
+    if (!q || q.length < 2) { resultsEl.style.display = 'none'; return; }
+    try {
+      const gid = userGroupId || currentUser.uid;
+      const snap = await getDocs(collection(db, 'groups', gid, 'history'));
+      const history = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const matched = history.filter(h => h.guests && normalize(h.guests).includes(q));
+      if (matched.length === 0) {
+        resultsEl.style.display = 'block';
+        resultsEl.innerHTML = '<div style="font-size:13px;color:var(--text3)">Aucun résultat pour "' + document.getElementById('stats-guest-search').value + '"</div>';
+        return;
+      }
+      matched.sort((a, b) => b.date.localeCompare(a.date));
+      const recipeNames = {};
+      allRecipes.forEach(r => { recipeNames[r.id] = (typeof r.data === 'function' ? r.data() : r.data).name; });
+      resultsEl.style.display = 'block';
+      resultsEl.innerHTML = `
+        <div class="stats-section-title">Repas avec "${document.getElementById('stats-guest-search').value}"</div>
+        ${matched.map(h => `
+          <div class="history-item">
+            <div class="history-recipe-name">${recipeNames[h.recipeId] || 'Recette supprimée'}</div>
+            <div class="history-meta">
+              <span>📅 ${formatDate(h.date)}</span>
+              ${h.convives ? '<span>👥 ' + h.convives + ' convives</span>' : ''}
+            </div>
+          </div>
+        `).join('')}
+      `;
+    } catch(e) { console.error(e); }
+  };
 
   window.formatDate = function(dateStr) {
     if (!dateStr) return '';
