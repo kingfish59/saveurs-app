@@ -1894,7 +1894,7 @@ const QUOTES = [
     } catch(e) { allGuests = []; }
   }
 
-  function renderGuestParams() {
+  window.renderGuestParams = function renderGuestParams() {
     const list = document.getElementById('params-guests-list');
     if (!list) return;
     if (allGuests.length === 0) {
@@ -1909,7 +1909,7 @@ const QUOTES = [
     `).join('');
   }
 
-  function renderGuestButtons() {
+  window.renderGuestButtons = function renderGuestButtons() {
     const wrap = document.getElementById('cook-guests-buttons');
     const empty = document.getElementById('cook-guests-empty');
     if (!wrap) return;
