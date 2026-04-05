@@ -1860,7 +1860,7 @@ const QUOTES = [
         + (isCrown ? '<span style="position:absolute;top:-6px;right:10px;font-size:18px;z-index:2" title="Recette la plus cuisinee">👑</span>' : '')
         + '<div class="recipe-thumb-placeholder">' + getCategoryEmoji(r.category) + '</div>'
         + '<div class="recipe-info">'
-        + '<div class="recipe-name">' + r.name + '</div>'
+        + '<div class="recipe-name">' + (r.name || '').toUpperCase() + (isCrown ? ' 👑' : '') + '</div>'
         + '<div class="recipe-meta">'
         + (r.category ? '<span class="recipe-tag">' + r.category + '</span>' : '')
         + (stars ? '<span class="recipe-stars">' + stars + '</span>' : '')
