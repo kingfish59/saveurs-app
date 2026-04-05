@@ -1126,13 +1126,13 @@
       </div>
       <div id="import-status" style="font-size:12px;color:var(--text3);margin-top:6px"></div>
     </div>
-    <div style="text-align:center;color:var(--text3);font-size:12px;margin:4px 0 8px">-- ou saisir manuellement --</div>
-      <div style="margin-bottom:16px">
+    <div style="margin-top:8px;margin-bottom:16px">
         <input type="file" id="import-json-input" accept=".json" style="display:none" onchange="importJSON(this)">
         <button type="button" onclick="document.getElementById('import-json-input').click()" style="width:100%;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);padding:10px 16px;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
           📥 Importer un fichier partagé
         </button>
       </div>
+    <div style="text-align:center;color:var(--text3);font-size:12px;margin:4px 0 16px">-- ou saisir manuellement --</div>
 
     <div class="form-group">
       <label class="form-label">Nom de la recette *</label>
@@ -1307,7 +1307,8 @@
     <button class="detail-back" onclick="closeDetail()">‹</button>
     <div class="detail-title" id="detail-title"></div>
     <button class="detail-edit-btn" onclick="openEditModal()" title="Modifier">✎</button>
-    <button onclick="exportSinglePDF()" title="Exporter" style="background:none;border:none;cursor:pointer;padding:8px;line-height:1;opacity:0.7;transition:opacity 0.2s;color:var(--gold);display:flex;align-items:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><path d="M12 3v12"/><path d="M9 6l3-3 3 3"/></svg></button>
+    <button onclick="exportSinglePDF()" title="Imprimer" style="background:none;border:none;cursor:pointer;padding:8px;line-height:1;opacity:0.7;transition:opacity 0.2s;color:var(--gold);display:flex;align-items:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><path d="M6 14h12v8H6z"/></svg></button>
+    <button onclick="shareRecipe()" title="Partager" style="background:none;border:none;cursor:pointer;padding:8px;line-height:1;opacity:0.7;transition:opacity 0.2s;color:var(--gold);display:flex;align-items:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><path d="M12 3v12"/><path d="M9 6l3-3 3 3"/></svg></button>
     <button class="detail-delete-btn" onclick="confirmDelete()" title="Supprimer">🗑</button>
   </div>
   <div class="detail-content" id="detail-content"></div>
@@ -2440,6 +2441,39 @@ const QUOTES = [
     document.body.appendChild(div);
     window.print();
     setTimeout(() => div.remove(), 1000);
+  };
+
+  // -- PARTAGE RECETTE --
+  window.shareRecipe = async () => {
+    if (!currentRecipeId) return;
+    const recipe = allRecipes.find(r => r.id === currentRecipeId);
+    if (!recipe) return;
+    const d = typeof recipe.data === 'function' ? recipe.data() : recipe.data;
+    const text = [
+      d.name,
+      d.category ? 'Categorie : ' + d.category : '',
+      d.prepTime ? 'Temps : ' + d.prepTime + ' min' : '',
+      d.servings ? 'Pour ' + d.servings + ' personnes' : '',
+      d.ingredients ? '\nIngredients :\n' + d.ingredients : '',
+      d.instructions ? '\nInstructions :\n' + d.instructions : '',
+      '\nPartagé depuis Saveurs'
+    ].filter(Boolean).join('\n');
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: d.name, text });
+      } catch(e) {
+        if (e.name !== 'AbortError') showToast('Erreur partage');
+      }
+    } else {
+      // Fallback : copier dans le presse-papiers
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('Recette copiée dans le presse-papiers');
+      } catch(e) {
+        showToast('Partage non disponible sur ce navigateur');
+      }
+    }
   };
 
   // -- EXPORT PDF --
