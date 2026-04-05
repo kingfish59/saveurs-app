@@ -722,6 +722,7 @@
       border-bottom: 1px solid rgba(201,168,76,0.15);
     }
     .detail-text {
+      font-family: 'DM Sans', sans-serif;
       font-size: 14px; color: var(--text2);
       line-height: 1.8;
       white-space: pre-wrap;
@@ -729,6 +730,7 @@
     .ingredient-line {
       padding: 8px 0;
       border-bottom: 1px solid rgba(201,168,76,0.06);
+      font-family: 'DM Sans', sans-serif;
       font-size: 14px; color: var(--text);
       display: flex; align-items: center; gap: 8px;
     }
@@ -751,6 +753,7 @@
       flex-shrink: 0; margin-top: 2px;
     }
     .step-text {
+      font-family: 'DM Sans', sans-serif;
       font-size: 14px; color: var(--text2);
       line-height: 1.7; flex: 1;
     }
@@ -1000,6 +1003,15 @@
       <div class="search-bar-wrap" style="position:relative">
         <input class="search-input" id="search-input" type="text" placeholder="Rechercher une recette, un ingrédient..." oninput="filterRecipes()" style="padding-right:40px">
         <button id="search-clear" onclick="clearSearch()" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;line-height:1;padding:4px">✕</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:8px;gap:8px">
+        <span style="font-size:11px;color:var(--text3);letter-spacing:1px">TRIER</span>
+        <select id="sort-select" onchange="sortAndRender()" style="background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);padding:5px 10px;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;outline:none">
+          <option value="date">Date ajout</option>
+          <option value="alpha">A → Z</option>
+          <option value="note">Note</option>
+          <option value="cuisinee">Plus cuisinée</option>
+        </select>
       </div>
       <div class="filters-row" id="filters-row">
         <button class="filter-btn active" data-filter="all" onclick="setFilter('all',this)">Toutes</button>
@@ -1542,6 +1554,14 @@ const QUOTES = [
         initUserUI(user);
         await loadUserGroup();
         await loadGuests();
+        loadCookCounts();
+        // Sauvegarder le nom pour l'affichage dans les groupes
+        if (user.displayName || user.email) {
+          setDoc(doc(db, 'users', user.uid), {
+            displayName: user.displayName || user.email,
+            email: user.email
+          }, { merge: true }).catch(() => {});
+        }
         loadStats();
         loadRecentRecipes();
       } else {
@@ -1635,20 +1655,69 @@ const QUOTES = [
     closeModal('modal-group');
   };
 
-  function showGroupCode(code) {
+  async function showGroupInfo(groupDoc) {
+    const data = groupDoc.data();
+    const members = data.members || [];
+    // Charger les noms des membres depuis Firestore users
+    let membersHTML = '';
+    for (const uid of members) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', uid));
+        const name = userDoc.exists() ? (userDoc.data().displayName || userDoc.data().email || uid) : uid;
+        const isMe = uid === currentUser.uid;
+        membersHTML += `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(201,168,76,0.08)">
+            <span style="font-size:14px;color:var(--text)">${name}${isMe ? ' <span style="font-size:11px;color:var(--text3)">(moi)</span>' : ''}</span>
+          </div>`;
+      } catch(e) {}
+    }
     document.getElementById('current-group-info').innerHTML = `
       <div class="invite-code-box">
-        <div class="invite-code">${code}</div>
+        <div class="invite-code">${data.code}</div>
         <div class="invite-code-label">Code d'invitation</div>
       </div>
       <p style="color:var(--text3);font-size:12px;text-align:center;margin-bottom:16px">Partagez ce code avec votre famille</p>
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Membres (${members.length})</div>
+        ${membersHTML}
+      </div>
+      <button onclick="leaveGroup()" style="width:100%;padding:12px;background:transparent;border:1px solid rgba(201,76,76,0.3);border-radius:var(--radius-sm);color:var(--red);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;margin-bottom:8px">
+        Quitter le groupe
+      </button>
     `;
   }
 
+  window.leaveGroup = async () => {
+    if (!confirm('Quitter ce groupe ? Vos recettes resteront dans le groupe.')) return;
+    try {
+      const gid = userGroupId;
+      // Retirer l'uid des membres
+      const groupDoc = await getDoc(doc(db, 'groups', gid));
+      if (groupDoc.exists()) {
+        const members = (groupDoc.data().members || []).filter(uid => uid !== currentUser.uid);
+        await updateDoc(doc(db, 'groups', gid), { members });
+      }
+      // Supprimer le groupId de l'utilisateur
+      await setDoc(doc(db, 'users', currentUser.uid), { groupId: null }, { merge: true });
+      userGroupId = null;
+      document.getElementById('current-group-info').innerHTML = '';
+      showToast('Vous avez quitté le groupe');
+      closeModal('modal-group');
+      loadRecentRecipes();
+      loadStats();
+    } catch(e) {
+      showToast('Erreur : ' + e.message);
+    }
+  };
+
   window.openGroupModal = async () => {
     if (userGroupId) {
-      const groupDoc = await getDoc(doc(db, 'groups', userGroupId));
-      if (groupDoc.exists()) showGroupCode(groupDoc.data().code);
+      try {
+        const groupDoc = await getDoc(doc(db, 'groups', userGroupId));
+        if (groupDoc.exists()) await showGroupInfo(groupDoc);
+      } catch(e) {}
+    } else {
+      document.getElementById('current-group-info').innerHTML = '';
     }
     openModal('modal-group');
   };
@@ -1683,6 +1752,31 @@ const QUOTES = [
   }
 
   let activeFilter = 'all';
+  let cookCounts = {}; // { recipeId: count }
+  let topRecipeId = null;
+
+  async function loadCookCounts() {
+    try {
+      const gid = userGroupId || currentUser.uid;
+      const snap = await getDocs(collection(db, 'groups', gid, 'history'));
+      cookCounts = {};
+      snap.docs.forEach(d => {
+        const rid = d.data().recipeId;
+        if (rid) cookCounts[rid] = (cookCounts[rid] || 0) + 1;
+      });
+      // Trouver la recette la plus cuisinée
+      let max = 0;
+      topRecipeId = null;
+      Object.entries(cookCounts).forEach(([id, count]) => {
+        if (count > max) { max = count; topRecipeId = id; }
+      });
+    } catch(e) {}
+  }
+
+  window.sortAndRender = () => {
+    const el = document.getElementById('recipes-list');
+    renderFiltered(allRecipes.map(r => ({ id: r.id, data: () => r.data })), el);
+  };
 
   function renderRecipeList(docs, containerId, isRecent) {
     const el = document.getElementById(containerId);
@@ -1722,22 +1816,42 @@ const QUOTES = [
       el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">Aucun résultat</div><div class="empty-text">Essayez un autre mot-clé ou filtre</div></div>';
       return;
     }
+    // Tri
+    const sortVal = document.getElementById('sort-select')?.value || 'date';
+    if (sortVal === 'alpha') filtered.sort((a, b) => {
+      const ra = a.data ? a.data() : a.data;
+      const rb = b.data ? b.data() : b.data;
+      return (ra.name||'').localeCompare(rb.name||'', 'fr');
+    });
+    else if (sortVal === 'note') filtered.sort((a, b) => {
+      const ra = a.data ? a.data() : a.data;
+      const rb = b.data ? b.data() : b.data;
+      return (rb.rating||0) - (ra.rating||0);
+    });
+    else if (sortVal === 'cuisinee') filtered.sort((a, b) => {
+      return (cookCounts[b.id]||0) - (cookCounts[a.id]||0);
+    });
+
     el.innerHTML = filtered.map(d => {
       const id = d.id;
       const r = d.data ? d.data() : d.data;
       const stars = r.rating ? '★'.repeat(r.rating) : '';
-      return `<div class="recipe-card" onclick="openRecipe('${id}')">
-        <div class="recipe-thumb-placeholder">${getCategoryEmoji(r.category)}</div>
-        <div class="recipe-info">
-          <div class="recipe-name">${r.name}</div>
-          <div class="recipe-meta">
-            ${r.category ? `<span class="recipe-tag">${r.category}</span>` : ''}
-            ${stars ? `<span class="recipe-stars">${stars}</span>` : ''}
-            ${r.cost ? `<span style="color:var(--gold);font-size:11px;font-weight:600">${'\u20ac'.repeat(r.cost)}</span>` : ''}
-          </div>
-          ${r.prepTime ? `<div class="recipe-tag" style="color:var(--text3)">⏱ ${r.prepTime}</div>` : ''}
-        </div>
-      </div>`;
+      const count = cookCounts[id] || 0;
+      const isCrown = topRecipeId === id && count > 0;
+      return '<div class="recipe-card" onclick="openRecipe(' + JSON.stringify(id) + ')" style="position:relative">'
+        + (isCrown ? '<span style="position:absolute;top:-6px;right:10px;font-size:18px;z-index:2" title="Recette la plus cuisinee">👑</span>' : '')
+        + '<div class="recipe-thumb-placeholder">' + getCategoryEmoji(r.category) + '</div>'
+        + '<div class="recipe-info">'
+        + '<div class="recipe-name">' + r.name + '</div>'
+        + '<div class="recipe-meta">'
+        + (r.category ? '<span class="recipe-tag">' + r.category + '</span>' : '')
+        + (stars ? '<span class="recipe-stars">' + stars + '</span>' : '')
+        + (r.cost ? '<span style="color:var(--gold);font-size:11px;font-weight:600">' + '\u20ac'.repeat(r.cost) + '</span>' : '')
+        + (count > 0 ? '<span style="font-size:11px;color:var(--text3)">🍳 ' + count + 'x</span>' : '')
+        + '</div>'
+        + (r.prepTime ? '<div class="recipe-tag" style="color:var(--text3)">⏱ ' + r.prepTime + '</div>' : '')
+        + '</div>'
+        + '</div>';
     }).join('');
   }
 
@@ -1771,6 +1885,18 @@ const QUOTES = [
   // -- DETAIL RECETTE --
   let allRecipes = [];
 
+  // Capitalise la première lettre, reste en minuscule
+  function capitalizeLine(str) {
+    if (!str) return '';
+    const s = str.trim();
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+  }
+
+  function capitalizeText(text) {
+    if (!text) return '';
+    return text.split('\n').map(line => capitalizeLine(line)).join('\n');
+  }
+
   window.openRecipe = async (id) => {
     currentRecipeId = id;
     let recipe = allRecipes.find(r => r.id === id);
@@ -1791,7 +1917,7 @@ const QUOTES = [
     if (r.ingredients) {
       ingredientsHTML = `<div class="detail-section-title">Ingrédients</div>` +
         r.ingredients.split('\n').filter(l => l.trim()).map(l =>
-          `<div class="ingredient-line">${l.trim()}</div>`
+          `<div class="ingredient-line">${capitalizeLine(l)}</div>`
         ).join('');
     }
 
@@ -1801,14 +1927,14 @@ const QUOTES = [
       if (steps.length > 1) {
         instructionsHTML = `<div class="detail-section-title">Instructions</div>` +
           steps.map((s, i) =>
-            `<div class="step-item"><div class="step-num">${i+1}</div><div class="step-text">${s.trim()}</div></div>`
+            `<div class="step-item"><div class="step-num">${i+1}</div><div class="step-text">${capitalizeLine(s)}</div></div>`
           ).join('');
       } else {
-        instructionsHTML = `<div class="detail-section-title">Instructions</div><p class="detail-text">${r.instructions}</p>`;
+        instructionsHTML = `<div class="detail-section-title">Instructions</div><p class="detail-text">${capitalizeText(r.instructions)}</p>`;
       }
     }
 
-    document.getElementById('detail-title').textContent = r.name;
+    document.getElementById('detail-title').textContent = (r.name || '').toUpperCase();
     document.getElementById('detail-content').innerHTML = `
       <div class="detail-meta">
         ${r.category ? `<span class="detail-badge">${getCategoryEmoji(r.category)} ${r.category}</span>` : ''}
@@ -2126,6 +2252,24 @@ const QUOTES = [
   window.closeDetail = () => {
     document.getElementById('detail-overlay').classList.remove('open');
   };
+
+  // -- SWIPE POUR FERMER LA FICHE --
+  (function() {
+    let touchStartX = 0;
+    document.addEventListener('touchstart', e => {
+      const overlay = document.getElementById('detail-overlay');
+      if (overlay && overlay.classList.contains('open')) {
+        touchStartX = e.touches[0].clientX;
+      }
+    }, { passive: true });
+    document.addEventListener('touchend', e => {
+      const overlay = document.getElementById('detail-overlay');
+      if (overlay && overlay.classList.contains('open')) {
+        const diff = e.changedTouches[0].clientX - touchStartX;
+        if (diff > 80) closeDetail();
+      }
+    }, { passive: true });
+  })();
 
   // -- SAVE RECIPE --
   window.saveRecipe = async () => {
