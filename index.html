@@ -903,7 +903,7 @@
     <div class="page active" id="page-home">
       <div class="welcome-card fade-up">
         <div class="welcome-name" id="welcome-name">Bonjour !</div>
-        <div class="welcome-text">Que cuisinez-vous aujourd'hui ?</div>
+        <div class="welcome-text" id="welcome-quote">Que cuisinez-vous aujourd'hui ?</div>
       </div>
 
       <div class="stats-grid fade-up-2">
@@ -1074,7 +1074,7 @@
       <select class="form-input compact" id="r-type">
         <option value="">-- Choisir --</option>
         <option value="minute">Recette minute</option>
-        <option value="avance">Peut se préparer à l'avance et réchauffer</option>
+        <option value="avance">Peut se préparer à l'avance</option>
       </select>
     </div>
     <div class="form-group">
@@ -1149,7 +1149,7 @@
       <select class="form-input compact" id="e-type">
         <option value="">— Choisir —</option>
         <option value="minute">Recette minute</option>
-        <option value="avance">Peut se préparer à l'avance et réchauffer</option>
+        <option value="avance">Peut se préparer à l'avance</option>
       </select>
     </div>
     <div class="form-group">
@@ -1296,6 +1296,113 @@
 
   // -- STATE --
   let currentUser = null;
+const QUOTES = [
+    "Que cuisinez-vous aujourd'hui ?",
+    "La cuisine, c'est quand les choses ont le gout de ce qu'elles sont.",
+    'On devient cuisinier, mais on nait rotisseur. — Brillat-Savarin',
+    'Dis-moi ce que tu manges, je te dirai ce que tu es. — Brillat-Savarin',
+    "La table est le seul endroit ou l'on ne s'ennuie jamais pendant la premiere heure.",
+    'Cuisiner suppose une tete legere, un esprit genereux et un coeur large. — Paul Gauguin',
+    "La cuisine est l'art de transformer instantanement des produits charges d'histoire en joie.",
+    'Un repas sans fromage est une belle a qui il manque un oeil. — Brillat-Savarin',
+    "La vie, c'est comme la cuisine : il faut y mettre du coeur.",
+    "Le secret d'une bonne cuisine, c'est d'abord le secret.",
+    'On ne fait pas une bonne cuisine avec seulement de bons sentiments. — Colette',
+    'La cuisine est la plus ancienne des arts et celle qui a rendu les plus grands services a la vie civile.',
+    'Manger est un besoin. Savoir manger est un art.',
+    "La bonne cuisine, c'est la base du veritable bonheur. — Auguste Escoffier",
+    'Un bon repas doit commencer par la faim.',
+    "La cuisine, c'est l'art de mettre de la vie dans les aliments.",
+    'Apres un bon diner, on pardonne a tout le monde, meme a ses proches. — Oscar Wilde',
+    'La soupe fait le soldat. — Napoleon Bonaparte',
+    'En cuisine, la creativite commence la ou finit la recette.',
+    'Le ventre gouverne le monde. — Rabelais',
+    "Cuisiner, c'est aimer les autres.",
+    "La seule facon de se debarrasser d'une tentation, c'est d'y ceder. — Oscar Wilde",
+    "Un repas en famille, c'est une recette qui ne vieillit pas.",
+    "La table est le lieu ou l'on ne s'ennuie jamais la premiere heure.",
+    "Manger sans boire, c'est comme un jardin sans pluie.",
+    "La cuisine est une forme d'amour.",
+    'Les bons plats font les bons amis.',
+    "Il n'y a pas de mauvaise cuisine, seulement de mauvais cuisiniers.",
+    'La gastronomie est la joie de toutes les conditions et de tous les ages. — Brillat-Savarin',
+    'Le bonheur est dans la cuisine.',
+    'Quand on a de bons ingredients, la moitie du travail est fait.',
+    "La cuisine, c'est de la chimie avec du gout.",
+    'Un plat bien presente est a moitie mange.',
+    "La table est le seul endroit ou l'on ne s'ennuie jamais.",
+    'Bien manger, bien boire et rien faire, voila la vie heureuse.',
+    "Cuisine avec amour, tes plats n'en seront que meilleurs.",
+    'Le plaisir de la table est de tous les ages, de toutes les conditions.',
+    'On ne vit pas pour manger, mais on mange pour vivre. Et encore...',
+    'La cuisine est le premier des arts. — Marie-Antoine Careme',
+    'Un bon repas vaut mille discours.',
+    "Le palais, c'est le juge supreme.",
+    'La cuisine parfaite est celle ou presque tout a ete fait la veille.',
+    "Le sel est l'ami de tous les plats.",
+    'Mange bien, ris souvent, aime beaucoup.',
+    'La table rapproche les hommes mieux que tout le reste.',
+    "Un festin de mots ne rassasie pas l'estomac.",
+    "Donner a manger a quelqu'un, c'est lui donner une partie de son coeur.",
+    'La cuisine est le seul art dont on peut se nourrir.',
+    "Il n'existe pas de cuisine sans feu. — Heraclite adapte",
+    "Qui mange seul s'etouffe seul.",
+    "La recette du bonheur : une pincee d'amour, beaucoup de rires.",
+    'Chaque repas est une nouvelle histoire a ecrire.',
+    "La meilleure sauce du monde, c'est l'appetit.",
+    "On reconnait un grand cuisinier a ce qu'il fait avec peu.",
+    'Le beurre, toujours le beurre. — Auguste Escoffier',
+    'Les repas de famille sont les plus beaux desordres du monde.',
+    "Un bon plat, c'est une promenade pour les papilles.",
+    'La cuisine est une fenetre ouverte sur les cultures du monde.',
+    'Tout peut se pardonner apres une bonne tarte Tatin.',
+    "La recette ideale n'existe pas, elle se reinvente chaque jour.",
+    'Le marche est le commencement de toute grande cuisine.',
+    "La cuisine improviste, c'est le jazz des fourneaux.",
+    "Bien manger, c'est la premiere politesse.",
+    'La vie est trop courte pour manger des mauvais plats.',
+    "Un cuisinier sans passion, c'est un four eteint.",
+    "Les meilleures recettes sont celles que l'on partage.",
+    "La gastronomie est l'art de choisir, preparer et manger des mets delicats.",
+    'Il faut manger pour vivre et non pas vivre pour manger. — Moliere',
+    'Le gout est un sens, la gastronomie est une culture.',
+    'Un repas sans dessert est comme une journee sans soleil.',
+    "Le pain est l'ami de toutes les heures.",
+    "La cuisine, c'est quand les recettes marchent.",
+    "Qui n'a pas goute ne peut pas juger.",
+    'La table est ronde pour que personne ne soit au bout.',
+    "Inviter quelqu'un, c'est se charger de son bonheur pendant tout le temps qu'il est sous votre toit. — Brillat-Savarin",
+    'Un vrai repas commence par la liste de courses.',
+    'Les epices sont la ponctuation de la cuisine.',
+    "La cuisine parfaite est celle que l'on partage.",
+    "Il n'y a pas de petits plats, seulement de petites appetits.",
+    'La faim est le meilleur assaisonnement.',
+    "Cuisiner, c'est transformer la nature en culture.",
+    "Le bonheur est fait de petits riens, et d'un bon diner.",
+    'La recette du succes : passion, patience et beurre.',
+    "Un repas memorable, c'est d'abord une bonne compagnie.",
+    'La cuisine est une meditation qui se mange.',
+    "Ce n'est pas la taille du couteau qui compte, c'est le talent du cuisinier.",
+    'Le four a ses raisons que la raison ne connait pas.',
+    "En cuisine comme en amour, l'improvisation est parfois la meilleure recette.",
+    "Qui a du pain a de l'espoir.",
+    "La cuisine saine, c'est la cuisine de saison.",
+    "Un bon bouillon vaut mieux qu'un long discours.",
+    "La cuisine, c'est l'art de transformer l'amour en nourriture.",
+    'Chaque ingredient a son histoire, chaque plat a son ame.',
+    'La simplicite est la sophistication supreme, meme en cuisine.',
+    'Le plaisir de cuisiner est aussi grand que celui de manger.',
+    "A table, les differences s'effacent et les sourires se multiplient.",
+    'La vie commence quand on allume les fourneaux.',
+    "Cuisiner sans gout, c'est comme peindre sans couleur.",
+    "Le meilleur repas est celui qu'on attendait.",
+    'La cuisine est une philosophie de vie.',
+    "Un plat reussi, c'est d'abord une belle intention."
+  ];
+  function showRandomQuote() {
+    const el = document.getElementById('welcome-quote');
+    if (el) el.textContent = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+  }
   let currentRating = 0;
   let currentCost = 0;
   let userGroupId = null;
@@ -1336,6 +1443,7 @@
     const initial = (user.displayName || user.email || '?')[0].toUpperCase();
     document.getElementById('user-avatar-placeholder').textContent = initial;
     document.getElementById('welcome-name').textContent = `Bonjour, ${user.displayName?.split(' ')[0] || 'Chef'} !`;
+    showRandomQuote();
     document.getElementById('profile-name').textContent = user.displayName || 'Utilisateur';
     document.getElementById('profile-email').textContent = user.email;
     document.getElementById('profile-avatar-big').textContent = initial;
@@ -1477,14 +1585,18 @@
     renderFiltered(items, el);
   }
 
+  function normalize(str) {
+    return (str || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }
+
   function renderFiltered(items, el) {
-    const search = (document.getElementById('search-input')?.value || '').toLowerCase();
+    const search = normalize(document.getElementById('search-input')?.value || '');
     const filtered = items.filter(d => {
       const r = d.data ? d.data() : d.data;
       const matchSearch = !search ||
-        r.name?.toLowerCase().includes(search) ||
-        r.ingredients?.toLowerCase().includes(search) ||
-        r.category?.toLowerCase().includes(search);
+        normalize(r.name).includes(search) ||
+        normalize(r.ingredients).includes(search) ||
+        normalize(r.category).includes(search);
       const matchFilter = activeFilter === 'all' ? true :
         activeFilter === 'top' ? (r.rating >= 4) :
         activeFilter === 'minute' ? (r.type === 'minute') :
