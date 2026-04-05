@@ -1055,25 +1055,6 @@
         </div>
       </div>
 
-      <div class="profile-section" style="margin-top:24px">
-        <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:12px">Exporter mes recettes</div>
-        <div style="display:flex;gap:10px">
-          <button onclick="exportPDF()" style="flex:1;padding:13px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
-            🖨️ PDF
-          </button>
-          <button onclick="exportJSON()" style="flex:1;padding:13px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
-            📤 Partager
-          </button>
-        </div>
-        <div style="margin-top:10px">
-          <label style="display:block;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Importer un fichier partagé</label>
-          <input type="file" id="import-json-input" accept=".json" style="display:none" onchange="importJSON(this)">
-          <button onclick="document.getElementById('import-json-input').click()" style="width:100%;padding:13px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--text2);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
-            📥 Importer des recettes
-          </button>
-        </div>
-      </div>
-
       <button class="btn-signout" id="btn-signout" style="margin-top:24px">Se déconnecter</button>
     </div>
 
@@ -1145,7 +1126,13 @@
       </div>
       <div id="import-status" style="font-size:12px;color:var(--text3);margin-top:6px"></div>
     </div>
-    <div style="text-align:center;color:var(--text3);font-size:12px;margin:4px 0 16px">-- ou saisir manuellement --</div>
+    <div style="text-align:center;color:var(--text3);font-size:12px;margin:4px 0 8px">-- ou saisir manuellement --</div>
+      <div style="margin-bottom:16px">
+        <input type="file" id="import-json-input" accept=".json" style="display:none" onchange="importJSON(this)">
+        <button type="button" onclick="document.getElementById('import-json-input').click()" style="width:100%;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);padding:10px 16px;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+          📥 Importer un fichier partagé
+        </button>
+      </div>
 
     <div class="form-group">
       <label class="form-label">Nom de la recette *</label>
@@ -1320,7 +1307,7 @@
     <button class="detail-back" onclick="closeDetail()">‹</button>
     <div class="detail-title" id="detail-title"></div>
     <button class="detail-edit-btn" onclick="openEditModal()" title="Modifier">✎</button>
-    <button onclick="exportSinglePDF()" title="Exporter" style="background:none;border:none;cursor:pointer;padding:8px;font-size:22px;line-height:1;opacity:0.7;transition:opacity 0.2s;color:var(--gold)">⬇︎</button>
+    <button onclick="exportSinglePDF()" title="Exporter" style="background:none;border:none;cursor:pointer;padding:8px;line-height:1;opacity:0.7;transition:opacity 0.2s;color:var(--gold);display:flex;align-items:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><path d="M12 3v12"/><path d="M9 6l3-3 3 3"/></svg></button>
     <button class="detail-delete-btn" onclick="confirmDelete()" title="Supprimer">🗑</button>
   </div>
   <div class="detail-content" id="detail-content"></div>
@@ -2437,7 +2424,7 @@ const QUOTES = [
     if (!currentRecipeId) return;
     const recipe = allRecipes.find(r => r.id === currentRecipeId);
     if (!recipe) return;
-    const d = recipe.data;
+    const d = typeof recipe.data === 'function' ? recipe.data() : recipe.data;
     const stars = d.rating ? '★'.repeat(d.rating) : '';
     const cost = d.cost ? '€'.repeat(d.cost) : '';
     let existing = document.getElementById('print-area');
