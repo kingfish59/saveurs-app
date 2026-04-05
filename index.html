@@ -677,8 +677,8 @@
     }
     .detail-edit-btn, .detail-delete-btn {
       background: none; border: none;
-      cursor: pointer; padding: 6px;
-      font-size: 18px; line-height: 1;
+      cursor: pointer; padding: 8px;
+      font-size: 26px; line-height: 1;
       opacity: 0.7; transition: opacity 0.2s;
     }
     .detail-edit-btn { color: var(--gold); }
@@ -1320,6 +1320,7 @@
     <button class="detail-back" onclick="closeDetail()">‹</button>
     <div class="detail-title" id="detail-title"></div>
     <button class="detail-edit-btn" onclick="openEditModal()" title="Modifier">✎</button>
+    <button onclick="exportSinglePDF()" title="Exporter" style="background:none;border:none;cursor:pointer;padding:8px;font-size:22px;line-height:1;opacity:0.7;transition:opacity 0.2s;color:var(--gold)">⬇︎</button>
     <button class="detail-delete-btn" onclick="confirmDelete()" title="Supprimer">🗑</button>
   </div>
   <div class="detail-content" id="detail-content"></div>
@@ -2429,6 +2430,29 @@ const QUOTES = [
       b.style.color = active ? 'var(--gold)' : 'var(--text3)';
       b.style.fontWeight = active ? '600' : '400';
     });
+  };
+
+  // -- EXPORT PDF RECETTE UNIQUE --
+  window.exportSinglePDF = () => {
+    if (!currentRecipeId) return;
+    const recipe = allRecipes.find(r => r.id === currentRecipeId);
+    if (!recipe) return;
+    const d = recipe.data;
+    const stars = d.rating ? '★'.repeat(d.rating) : '';
+    const cost = d.cost ? '€'.repeat(d.cost) : '';
+    let existing = document.getElementById('print-area');
+    if (existing) existing.remove();
+    const div = document.createElement('div');
+    div.id = 'print-area';
+    div.innerHTML = `<div class="print-recipe">
+      <div class="print-recipe-name">${d.name || ''}</div>
+      <div class="print-recipe-meta">${[d.category, d.prepTime ? d.prepTime + ' min' : '', d.servings ? d.servings + ' pers.' : '', stars, cost].filter(Boolean).join(' · ')}</div>
+      ${d.ingredients ? '<div class="print-section">Ingrédients</div><div class="print-text">' + d.ingredients + '</div>' : ''}
+      ${d.instructions ? '<div class="print-section">Instructions</div><div class="print-text">' + d.instructions + '</div>' : ''}
+    </div>`;
+    document.body.appendChild(div);
+    window.print();
+    setTimeout(() => div.remove(), 1000);
   };
 
   // -- EXPORT PDF --
