@@ -887,6 +887,95 @@
       .print-text { font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
     }
 
+    /* SEMAINIER */
+    .week-day {
+      margin-bottom: 10px;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 1px solid rgba(201,168,76,0.1);
+    }
+    .week-day-header {
+      display: flex; align-items: center;
+      padding: 8px 12px;
+      background: var(--surface);
+      border-bottom: 1px solid rgba(201,168,76,0.1);
+    }
+    .week-day-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 16px; font-weight: 400;
+      color: var(--gold); flex: 1;
+      letter-spacing: 1px;
+    }
+    .week-day-date {
+      font-size: 11px; color: var(--text3);
+      letter-spacing: 1px;
+    }
+    .week-day-today .week-day-header {
+      background: var(--gold-dim);
+      border-bottom-color: rgba(201,168,76,0.3);
+    }
+    .week-day-today .week-day-name { color: var(--gold2); }
+    .meal-slot {
+      display: flex; align-items: center;
+      padding: 10px 12px;
+      background: var(--bg2);
+      cursor: pointer;
+      transition: background 0.15s;
+      gap: 10px;
+      border-bottom: 1px solid rgba(201,168,76,0.05);
+    }
+    .meal-slot:last-child { border-bottom: none; }
+    .meal-slot:active { background: var(--bg3); }
+    .meal-slot-label {
+      font-size: 10px; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 1.5px;
+      width: 40px; flex-shrink: 0;
+    }
+    .meal-slot-content {
+      flex: 1;
+    }
+    .meal-slot-name {
+      font-size: 13px; color: var(--text);
+      font-weight: 500;
+    }
+    .meal-slot-meta {
+      font-size: 11px; color: var(--text3);
+      margin-top: 2px;
+    }
+    .meal-slot-empty .meal-slot-name {
+      color: var(--text3);
+      font-weight: 400;
+      font-style: italic;
+    }
+    .meal-slot-check {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(201,168,76,0.3);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 10px;
+      transition: all 0.15s;
+    }
+    .meal-slot-check.checked {
+      background: var(--gold-dim);
+      border-color: rgba(201,168,76,0.6);
+      color: var(--gold);
+    }
+    .meal-slot-leftovers {
+      font-size: 11px; color: var(--text3);
+      font-style: italic;
+    }
+
+    .meal-option {
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-bottom: 4px;
+      background: var(--surface);
+      border: 1px solid rgba(201,168,76,0.1);
+    }
+    .meal-option:active { background: var(--surface2); }
+
     /* SCROLLBAR */
     ::-webkit-scrollbar { width: 3px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -1035,11 +1124,26 @@
 
     <!-- SEMAINIER PAGE -->
     <div class="page" id="page-semainier">
-      <div class="empty-state">
-        <div class="empty-icon">📅</div>
-        <div class="empty-title">Semainier</div>
-        <div class="empty-text">Planifiez vos repas de la semaine.<br>Bientôt disponible.</div>
+
+      <!-- Navigation semaine -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <button onclick="prevWeek()" style="background:none;border:none;color:var(--gold);font-size:24px;cursor:pointer;padding:4px 8px">‹</button>
+        <div style="text-align:center">
+          <div id="week-label" style="font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--text);letter-spacing:1px"></div>
+          <div id="week-sub" style="font-size:11px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-top:2px"></div>
+        </div>
+        <button onclick="nextWeek()" style="background:none;border:none;color:var(--gold);font-size:24px;cursor:pointer;padding:4px 8px">›</button>
       </div>
+
+      <!-- Boutons actions -->
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button onclick="inspireMe()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">✨ Inspire-moi</button>
+        <button onclick="openShoppingList()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🛒 Liste de courses</button>
+      </div>
+
+      <!-- Grille semaine -->
+      <div id="week-grid"></div>
+
     </div>
 
     <!-- STATS PAGE -->
@@ -1350,6 +1454,29 @@
     <button class="detail-delete-btn" onclick="confirmDelete()" title="Supprimer">🗑</button>
   </div>
   <div class="detail-content" id="detail-content"></div>
+</div>
+
+<!-- MODAL CHOIX REPAS -->
+<div class="modal-overlay" id="modal-meal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="meal-modal-title">Choisir un repas</div>
+    <div id="meal-current"></div>
+    <input class="form-input compact" id="meal-search-input" type="text" placeholder="Rechercher une recette..." oninput="renderMealSearchResults(this.value)" style="margin-bottom:10px">
+    <div id="meal-search-results" style="max-height:340px;overflow-y:auto"></div>
+    <button class="btn-secondary" style="margin-top:12px" onclick="closeModal('modal-meal')">Annuler</button>
+  </div>
+</div>
+
+<!-- MODAL LISTE DE COURSES -->
+<div class="modal-overlay" id="modal-shopping">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🛒 Liste de courses</div>
+    <pre id="shopping-list-content" style="font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text2);line-height:1.8;white-space:pre-wrap;max-height:360px;overflow-y:auto;margin-bottom:16px"></pre>
+    <button class="btn-primary" onclick="shareShoppingList()">Partager / Envoyer</button>
+    <button class="btn-secondary" style="margin-top:8px" onclick="closeModal('modal-shopping')">Fermer</button>
+  </div>
 </div>
 
 <!-- MODAL HISTORIQUE -->
@@ -2852,7 +2979,294 @@ const QUOTES = [
     input.value = '';
   };
 
+  // -- SEMAINIER --
+  const DAYS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+  const MEALS = [{ key: 'midi', label: 'Midi' }, { key: 'soir', label: 'Soir' }];
+  let currentWeekOffset = 0; // 0 = semaine courante
+  let weekPlan = {}; // { 'YYYY-WW': { 'lundi-midi': { type, recipeId, name, meta }, ... } }
+  let shoppingChecked = {}; // { 'lundi-midi': true }
+
+  function getWeekStart(offset) {
+    const now = new Date();
+    const day = now.getDay(); // 0=dim, 1=lun...
+    const diff = (day === 0 ? -6 : 1 - day);
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diff + offset * 7);
+    monday.setHours(0,0,0,0);
+    return monday;
+  }
+
+  function getWeekKey(offset) {
+    const d = getWeekStart(offset);
+    const year = d.getFullYear();
+    const week = Math.ceil(((d - new Date(year,0,1)) / 86400000 + new Date(year,0,1).getDay() + 1) / 7);
+    return year + '-W' + String(week).padStart(2,'0');
+  }
+
+  function formatDayDate(date) {
+    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  }
+
+  function renderWeekGrid() {
+    const weekStart = getWeekStart(currentWeekOffset);
+    const wkey = getWeekKey(currentWeekOffset);
+    const plan = weekPlan[wkey] || {};
+    const today = new Date(); today.setHours(0,0,0,0);
+
+    // Label semaine
+    const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+    document.getElementById('week-label').textContent =
+      formatDayDate(weekStart) + ' — ' + formatDayDate(weekEnd);
+    document.getElementById('week-sub').textContent =
+      currentWeekOffset === 0 ? 'Semaine en cours' :
+      currentWeekOffset === 1 ? 'Semaine prochaine' :
+      currentWeekOffset === -1 ? 'Semaine dernière' :
+      'Semaine ' + wkey.split('-W')[1];
+
+    const grid = document.getElementById('week-grid');
+    if (!grid) return;
+
+    grid.innerHTML = DAYS.map((dayName, i) => {
+      const date = new Date(weekStart); date.setDate(weekStart.getDate() + i);
+      const isToday = date.getTime() === today.getTime();
+      const dayKey = dayName.toLowerCase();
+
+      const mealsHTML = MEALS.map(meal => {
+        const slotKey = dayKey + '-' + meal.key;
+        const slot = plan[slotKey];
+        const isChecked = shoppingChecked[wkey + '-' + slotKey];
+
+        let nameHTML = '<span class="meal-slot-name">+ Ajouter un repas</span>';
+        let metaHTML = '';
+        let isEmpty = true;
+
+        if (slot) {
+          isEmpty = false;
+          if (slot.type === 'leftovers') {
+            nameHTML = '<span class="meal-slot-name">🔄 ' + slot.name + '</span>';
+            metaHTML = '<div class="meal-slot-meta meal-slot-leftovers">Restes</div>';
+          } else {
+            nameHTML = '<span class="meal-slot-name">' + (slot.name || '').toUpperCase() + '</span>';
+            if (slot.meta) metaHTML = '<div class="meal-slot-meta">' + slot.meta + '</div>';
+          }
+        }
+
+        return '<div class="meal-slot' + (isEmpty ? ' meal-slot-empty' : '') + '" onclick="openMealSlot(\'' + wkey + '\',\'' + slotKey + '\')">'
+          + '<div class="meal-slot-label">' + meal.label + '</div>'
+          + '<div class="meal-slot-content">' + nameHTML + metaHTML + '</div>'
+          + (slot ? '<div class="meal-slot-check' + (isChecked ? ' checked' : '') + '" onclick="event.stopPropagation();toggleShoppingCheck(\'' + wkey + '\',\'' + slotKey + '\')">' + (isChecked ? '✓' : '') + '</div>' : '')
+          + '</div>';
+      }).join('');
+
+      return '<div class="week-day' + (isToday ? ' week-day-today' : '') + '">'
+        + '<div class="week-day-header">'
+        + '<div class="week-day-name">' + dayName + '</div>'
+        + '<div class="week-day-date">' + formatDayDate(date) + '</div>'
+        + '</div>'
+        + mealsHTML
+        + '</div>';
+    }).join('');
+  }
+
+  window.prevWeek = () => { currentWeekOffset--; renderWeekGrid(); };
+  window.nextWeek = () => { currentWeekOffset++; renderWeekGrid(); };
+
+  window.toggleShoppingCheck = (wkey, slotKey) => {
+    const k = wkey + '-' + slotKey;
+    shoppingChecked[k] = !shoppingChecked[k];
+    renderWeekGrid();
+  };
+
+  window.openMealSlot = (wkey, slotKey) => {
+    // Ouvrir la modal de choix de repas
+    currentEditSlot = { wkey, slotKey };
+    const plan = weekPlan[wkey] || {};
+    const slot = plan[slotKey];
+
+    document.getElementById('meal-modal-title').textContent =
+      slotKey.replace('-', ' — ').replace(/^\w/, c => c.toUpperCase());
+    document.getElementById('meal-search-input').value = '';
+    document.getElementById('meal-search-results').innerHTML = '';
+    document.getElementById('meal-current').innerHTML = slot
+      ? '<div style="font-size:13px;color:var(--text2);margin-bottom:12px">Actuellement : <strong>' + (slot.name||'').toUpperCase() + '</strong> <button onclick="clearMealSlot()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;margin-left:8px">Supprimer</button></div>'
+      : '';
+    openModal('modal-meal');
+    renderMealSearchResults('');
+  };
+
+  window.clearMealSlot = () => {
+    if (!currentEditSlot) return;
+    const { wkey, slotKey } = currentEditSlot;
+    if (!weekPlan[wkey]) weekPlan[wkey] = {};
+    delete weekPlan[wkey][slotKey];
+    saveWeekPlan(wkey);
+    closeModal('modal-meal');
+    renderWeekGrid();
+  };
+
+  function renderMealSearchResults(search) {
+    const el = document.getElementById('meal-search-results');
+    const norm = normalize(search);
+    el.innerHTML = '';
+
+    const wkey = currentEditSlot?.wkey;
+    const plan = weekPlan[wkey] || {};
+    const filledSlots = Object.entries(plan).filter(([k, v]) => v && v.name && k !== currentEditSlot?.slotKey);
+
+    // Restes
+    if (filledSlots.length > 0) {
+      const header = document.createElement('div');
+      header.style.cssText = 'font-size:10px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin:8px 0 6px';
+      header.textContent = 'Restes';
+      el.appendChild(header);
+
+      filledSlots.forEach(([k, v]) => {
+        const label = k.charAt(0).toUpperCase() + k.slice(1).replace('-', ' — ');
+        const btn = document.createElement('div');
+        btn.className = 'meal-option';
+        btn.textContent = '🔄 ' + label + ' — ' + (v.name || '').toUpperCase();
+        btn.onclick = () => selectLeftovers(k, v.name);
+        el.appendChild(btn);
+      });
+    }
+
+    // Recettes
+    const filtered = allRecipes.filter(r => {
+      const d = typeof r.data === 'function' ? r.data() : r.data;
+      return !norm || normalize(d.name).includes(norm);
+    }).slice(0, 20);
+
+    if (filtered.length > 0) {
+      const header = document.createElement('div');
+      header.style.cssText = 'font-size:10px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin:8px 0 6px';
+      header.textContent = 'Recettes';
+      el.appendChild(header);
+
+      filtered.forEach(r => {
+        const d = typeof r.data === 'function' ? r.data() : r.data;
+        const meta = [d.category, d.prepTime ? '⏱ ' + d.prepTime : ''].filter(Boolean).join(' · ');
+        const btn = document.createElement('div');
+        btn.className = 'meal-option';
+        btn.innerHTML = '<div style="font-size:13px;font-weight:500;color:var(--text)">' + (d.name || '').toUpperCase() + '</div>'
+          + (meta ? '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + meta + '</div>' : '');
+        btn.onclick = () => selectRecipe(r.id, d.name, meta);
+        el.appendChild(btn);
+      });
+    }
+
+    if (el.children.length === 0) {
+      el.innerHTML = '<div style="font-size:13px;color:var(--text3);padding:12px 0">Aucune recette trouvée</div>';
+    }
+  }
+
+    window.selectRecipe = (recipeId, name, meta) => {
+    if (!currentEditSlot) return;
+    const { wkey, slotKey } = currentEditSlot;
+    if (!weekPlan[wkey]) weekPlan[wkey] = {};
+    weekPlan[wkey][slotKey] = { type: 'recipe', recipeId, name, meta };
+    saveWeekPlan(wkey);
+    closeModal('modal-meal');
+    renderWeekGrid();
+  };
+
+  window.selectLeftovers = (fromSlot, name) => {
+    if (!currentEditSlot) return;
+    const { wkey, slotKey } = currentEditSlot;
+    if (!weekPlan[wkey]) weekPlan[wkey] = {};
+    weekPlan[wkey][slotKey] = { type: 'leftovers', fromSlot, name };
+    saveWeekPlan(wkey);
+    closeModal('modal-meal');
+    renderWeekGrid();
+  };
+
+  window.inspireMe = () => {
+    if (!allRecipes.length) { showToast('Aucune recette disponible'); return; }
+    // Choisir une recette pas faite récemment
+    const recent = Object.values(weekPlan).flatMap(w => Object.values(w).map(s => s.recipeId)).filter(Boolean);
+    const pool = allRecipes.filter(r => !recent.includes(r.id));
+    const list = pool.length > 0 ? pool : allRecipes;
+    const pick = list[Math.floor(Math.random() * list.length)];
+    const d = typeof pick.data === 'function' ? pick.data() : pick.data;
+    showToast('Suggestion : ' + d.name);
+    if (currentEditSlot) {
+      selectRecipe(pick.id, d.name, d.category || '');
+    }
+  };
+
+  window.openShoppingList = () => {
+    const wkey = getWeekKey(currentWeekOffset);
+    const plan = weekPlan[wkey] || {};
+    const checkedSlots = Object.entries(shoppingChecked)
+      .filter(([k, v]) => v && k.startsWith(wkey))
+      .map(([k]) => k.replace(wkey + '-', ''));
+
+    if (checkedSlots.length === 0) {
+      showToast("Coche des repas d'abord avec le ✓");
+      return;
+    }
+
+    // Collecter les ingrédients
+    const ingredientLines = [];
+    checkedSlots.forEach(slotKey => {
+      const slot = plan[slotKey];
+      if (!slot || slot.type === 'leftovers') return;
+      const recipe = allRecipes.find(r => r.id === slot.recipeId);
+      if (!recipe) return;
+      const d = typeof recipe.data === 'function' ? recipe.data() : recipe.data;
+      if (d.ingredients) {
+        d.ingredients.split('\n').filter(l => l.trim()).forEach(l => ingredientLines.push(l.trim()));
+      }
+    });
+
+    if (ingredientLines.length === 0) {
+      showToast('Aucun ingrédient trouvé pour les repas sélectionnés');
+      return;
+    }
+
+    const listText = checkedSlots.map(s => {
+      const slot = plan[s];
+      return slot ? (slot.name || '').toUpperCase() : '';
+    }).filter(Boolean).join(', ');
+
+    const text = 'Liste de courses (' + listText + ') :\n\n' + ingredientLines.join('\n');
+
+    document.getElementById('shopping-list-content').textContent = text;
+    openModal('modal-shopping');
+  };
+
+  window.shareShoppingList = async () => {
+    const text = document.getElementById('shopping-list-content').textContent;
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Liste de courses', text }); }
+      catch(e) { if (e.name !== 'AbortError') showToast('Erreur partage'); }
+    } else {
+      try { await navigator.clipboard.writeText(text); showToast('Liste copiée !'); }
+      catch(e) { showToast('Partage non disponible'); }
+    }
+  };
+
+  async function saveWeekPlan(wkey) {
+    try {
+      const gid = userGroupId || currentUser.uid;
+      await setDoc(doc(db, 'groups', gid, 'weekplans', wkey), weekPlan[wkey] || {});
+    } catch(e) { console.error('saveWeekPlan:', e); }
+  }
+
+  async function loadWeekPlan(wkey) {
+    if (weekPlan[wkey]) return;
+    try {
+      const gid = userGroupId || currentUser.uid;
+      const d = await getDoc(doc(db, 'groups', gid, 'weekplans', wkey));
+      weekPlan[wkey] = d.exists() ? d.data() : {};
+    } catch(e) { weekPlan[wkey] = {}; }
+  }
+
+  let currentEditSlot = null;
+
   window.switchPage = (page) => {
+    if (page === 'semainier') {
+      loadWeekPlan(getWeekKey(currentWeekOffset)).then(() => renderWeekGrid());
+    }
     if (page === 'stats') loadStatsPage();
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
