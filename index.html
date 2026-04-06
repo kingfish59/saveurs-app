@@ -1311,6 +1311,12 @@
           <span style="font-size:16px">📷</span> Importer depuis une photo
         </button>
       </div>
+      <div style="margin-top:8px">
+        <input type="file" id="r-pdf-import" accept=".pdf,application/pdf" style="display:none" onchange="importFromPDF(this)">
+        <button type="button" onclick="document.getElementById('r-pdf-import').click()" style="width:100%;background:var(--surface);border:1px solid rgba(201,168,76,0.3);border-radius:var(--radius-sm);padding:10px 16px;color:var(--gold);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px">
+          <span style="font-size:16px">📄</span> Importer depuis un PDF
+        </button>
+      </div>
       <div id="import-status" style="font-size:12px;color:var(--text3);margin-top:6px"></div>
       <div style="margin-top:8px">
         <input type="file" id="import-json-input" accept=".json" style="display:none" onchange="importJSON(this)">
@@ -2830,6 +2836,55 @@ const QUOTES = [
     await importFromPhoto(imageData);
     btn.textContent = 'Importer cette zone';
     btn.disabled = false;
+  };
+
+  // -- IMPORT DEPUIS PDF --
+  window.importFromPDF = async (input) => {
+    if (!input.files || !input.files[0]) return;
+    const statusEl = document.getElementById('import-status');
+    const btnEl = input.previousElementSibling || document.querySelector('[onclick*="r-pdf-import"]');
+    statusEl.style.color = 'var(--text3)';
+    statusEl.textContent = 'Lecture du PDF en cours...';
+    try {
+      const file = input.files[0];
+      if (file.size > 5 * 1024 * 1024) {
+        statusEl.textContent = 'PDF trop volumineux (max 5 Mo)';
+        statusEl.style.color = 'var(--red)';
+        input.value = '';
+        return;
+      }
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const response = await fetch('/api/import-recipe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdfBase64: base64 })
+      });
+      const recipe = await response.json();
+      if (recipe.error) {
+        statusEl.textContent = recipe.error === 'no_recipe'
+          ? 'Aucune recette trouvée dans ce PDF.'
+          : 'Erreur importation. Vérifie le fichier.';
+        statusEl.style.color = 'var(--red)';
+      } else {
+        if (recipe.name) document.getElementById('r-name').value = recipe.name;
+        if (recipe.category) document.getElementById('r-category').value = recipe.category;
+        if (recipe.prepTime) document.getElementById('r-time').value = recipe.prepTime;
+        if (recipe.servings) document.getElementById('r-servings').value = recipe.servings;
+        if (recipe.ingredients) document.getElementById('r-ingredients').value = recipe.ingredients;
+        if (recipe.instructions) document.getElementById('r-instructions').value = recipe.instructions;
+        statusEl.textContent = 'Recette importée ! Vérifie et complète les champs.';
+        statusEl.style.color = 'var(--green)';
+      }
+    } catch(e) {
+      statusEl.textContent = 'Erreur : ' + e.message;
+      statusEl.style.color = 'var(--red)';
+    }
+    input.value = '';
   };
 
   // -- IMPORT DEPUIS PHOTO --

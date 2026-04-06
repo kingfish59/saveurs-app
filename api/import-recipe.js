@@ -9,27 +9,37 @@ export default async function handler(req, res) {
   const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
   if (!ANTHROPIC_KEY) return res.status(500).json({ error: 'no_api_key' });
 
-  const { url, imageBase64 } = req.body || {};
+  const { url, imageBase64, pdfBase64 } = req.body || {};
+
+  const SYSTEM = 'Tu es un extracteur de recettes de cuisine. Extrais la recette et reponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, avec exactement ces champs: name (string), category (string parmi: Entree, Plat, Dessert, Aperitif, Petit-dejeuner, Autre), prepTime (nombre entier de minutes ou null), servings (nombre entier ou null), ingredients (string, un ingredient par ligne), instructions (string, une etape par ligne). Si pas de recette trouvee reponds uniquement: {"error":"no_recipe"}';
 
   let messages;
 
-  if (imageBase64) {
+  if (pdfBase64) {
+    // Mode PDF
+    messages = [{
+      role: 'user',
+      content: [
+        {
+          type: 'document',
+          source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 }
+        },
+        { type: 'text', text: 'Extrais la recette presente dans ce PDF.' }
+      ]
+    }];
+  } else if (imageBase64) {
+    // Mode image
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
     const mediaType = imageBase64.match(/^data:(image\/\w+);base64,/)?.[1] || 'image/jpeg';
     messages = [{
       role: 'user',
       content: [
-        {
-          type: 'image',
-          source: { type: 'base64', media_type: mediaType, data: base64Data }
-        },
-        {
-          type: 'text',
-          text: 'Extrais la recette presente sur cette photo et reponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, avec exactement ces champs: name (string), category (string parmi: Entree, Plat, Soupe / Potage, Dessert, Aperitif, Petit-dejeuner, Autre), prepTime (nombre entier de minutes ou null), servings (nombre entier ou null), ingredients (string, un ingredient par ligne), instructions (string, une etape par ligne). Si pas de recette visible reponds uniquement: {"error":"no_recipe"}'
-        }
+        { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } },
+        { type: 'text', text: 'Extrais la recette presente sur cette photo.' }
       ]
     }];
   } else if (url) {
+    // Mode URL
     let pageContent = '';
     try {
       const pageRes = await fetch(url, {
@@ -49,10 +59,10 @@ export default async function handler(req, res) {
     }
     messages = [{
       role: 'user',
-      content: 'Extrais la recette depuis ce texte et reponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, avec exactement ces champs: name (string), category (string parmi: Entree, Plat, Soupe / Potage, Dessert, Aperitif, Petit-dejeuner, Autre), prepTime (nombre entier de minutes ou null), servings (nombre entier ou null), ingredients (string, un ingredient par ligne), instructions (string, une etape par ligne). Si pas de recette trouvee reponds uniquement: {"error":"no_recipe"}\n\n' + pageContent
+      content: 'Extrais la recette depuis ce texte:\n\n' + pageContent
     }];
   } else {
-    return res.status(400).json({ error: 'Missing url or imageBase64' });
+    return res.status(400).json({ error: 'Missing url, imageBase64 or pdfBase64' });
   }
 
   try {
@@ -61,11 +71,13 @@ export default async function handler(req, res) {
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01'
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'pdfs-2024-09-25'
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 1500,
+        system: SYSTEM,
         messages
       })
     });
