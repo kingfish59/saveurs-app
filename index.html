@@ -869,6 +869,58 @@
       pointer-events: none;
     }
 
+    /* PRINT PLANNING SEMAINIER */
+    @media print {
+      @page { size: A4 landscape; margin: 12mm; }
+      body * { visibility: hidden; }
+      #print-planning, #print-planning * { visibility: visible; }
+      #print-planning {
+        position: fixed; inset: 0;
+        background: white; color: #1a1a1a;
+        font-family: 'DM Sans', Arial, sans-serif;
+        padding: 0;
+      }
+      .pp-header {
+        text-align: center;
+        margin-bottom: 10px;
+        border-bottom: 2px solid #c9a84c;
+        padding-bottom: 6px;
+      }
+      .pp-title {
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: 22px;
+        font-weight: 300;
+        color: #c9a84c;
+        letter-spacing: 4px;
+      }
+      .pp-subtitle { font-size: 11px; color: #666; letter-spacing: 2px; }
+      .pp-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+        width: 100%;
+      }
+      .pp-day { border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
+      .pp-day-header {
+        background: #f5f0e8;
+        padding: 4px 6px;
+        border-bottom: 1px solid #c9a84c;
+      }
+      .pp-day-name {
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: 13px;
+        font-weight: 600;
+        color: #8a6a20;
+      }
+      .pp-day-date { font-size: 9px; color: #888; }
+      .pp-slot { padding: 4px 6px; border-bottom: 1px solid #f0f0f0; min-height: 32px; }
+      .pp-slot:last-child { border-bottom: none; }
+      .pp-slot-label { font-size: 8px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+      .pp-slot-name { font-size: 10px; font-weight: 600; color: #1a1a1a; line-height: 1.3; margin-top: 1px; }
+      .pp-slot-name.leftovers { color: #4cac7a; }
+      .pp-slot-empty .pp-slot-name { color: #ccc; font-weight: 400; font-style: italic; }
+    }
+
     /* PRINT */
     @media print {
       body * { visibility: hidden; }
@@ -1143,6 +1195,7 @@
         <button onclick="inspireMe()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">✨ Inspire-moi</button>
         <button onclick="openShoppingList()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🛒 Liste de courses</button>
         <button onclick="resetWeek()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🗑 Effacer</button>
+        <button onclick="printWeekPlan()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🖨️ Imprimer</button>
       </div>
 
       <!-- Grille semaine -->
@@ -3100,6 +3153,64 @@ const QUOTES = [
         + '</div>';
     }).join('');
   }
+
+  window.printWeekPlan = () => {
+    const wkey = getWeekKey(currentWeekOffset);
+    const plan = weekPlan[wkey] || {};
+    const weekStart = getWeekStart(currentWeekOffset);
+    const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+
+    let existing = document.getElementById('print-planning');
+    if (existing) existing.remove();
+
+    const div = document.createElement('div');
+    div.id = 'print-planning';
+
+    const daysHTML = DAYS.map((dayName, i) => {
+      const date = new Date(weekStart); date.setDate(weekStart.getDate() + i);
+      const dayKey = dayName.toLowerCase();
+
+      const slotsHTML = MEALS.map(meal => {
+        const slotKey = dayKey + '-' + meal.key;
+        const slot = plan[slotKey];
+        if (meal.optional && !slot) return '';
+
+        let nameText = '';
+        let cls = 'pp-slot-name';
+        if (slot) {
+          if (slot.type === 'leftovers') {
+            nameText = slot.name || '';
+            cls += ' leftovers';
+          } else {
+            nameText = (slot.name || '').toUpperCase();
+          }
+        }
+
+        return '<div class="pp-slot' + (!slot ? ' pp-slot-empty' : '') + '">'
+          + '<div class="pp-slot-label">' + meal.label + '</div>'
+          + '<div class="' + cls + '">' + (nameText || '—') + '</div>'
+          + '</div>';
+      }).join('');
+
+      return '<div class="pp-day">'
+        + '<div class="pp-day-header">'
+        + '<div class="pp-day-name">' + dayName + '</div>'
+        + '<div class="pp-day-date">' + formatDayDate(date) + '</div>'
+        + '</div>'
+        + slotsHTML
+        + '</div>';
+    }).join('');
+
+    div.innerHTML = '<div class="pp-header">'
+      + '<div class="pp-title">Saveurs</div>'
+      + '<div class="pp-subtitle">Semaine du ' + formatDayDate(weekStart) + ' au ' + formatDayDate(weekEnd) + '</div>'
+      + '</div>'
+      + '<div class="pp-grid">' + daysHTML + '</div>';
+
+    document.body.appendChild(div);
+    window.print();
+    setTimeout(() => div.remove(), 1000);
+  };
 
   window.resetWeek = async () => {
     if (!confirm('Effacer tous les repas de cette semaine ?')) return;
