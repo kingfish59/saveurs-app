@@ -2981,7 +2981,7 @@ const QUOTES = [
 
   // -- SEMAINIER --
   const DAYS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
-  const MEALS = [{ key: 'midi', label: 'Midi' }, { key: 'soir', label: 'Soir' }];
+  const MEALS = [{ key: 'midi', label: 'Midi' }, { key: 'soir', label: 'Soir' }, { key: 'dessert', label: 'Dessert', optional: true }];
   let currentWeekOffset = 0; // 0 = semaine courante
   let weekPlan = {}; // { 'YYYY-WW': { 'lundi-midi': { type, recipeId, name, meta }, ... } }
   let shoppingChecked = {}; // { 'lundi-midi': true }
@@ -3031,7 +3031,20 @@ const QUOTES = [
       const isToday = date.getTime() === today.getTime();
       const dayKey = dayName.toLowerCase();
 
-      const mealsHTML = MEALS.map(meal => {
+      // Bouton + Dessert si dessert vide
+      const dessertSlot = plan[dayKey + '-dessert'];
+      const dessertBtn = !dessertSlot
+        ? '<div style="display:flex;justify-content:flex-end;padding:4px 12px 6px">'
+          + '<button onclick="openMealSlot(\'' + wkey + '\',\'' + dayKey + '-dessert\')" '
+          + 'style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;letter-spacing:1px">+ Dessert</button>'
+          + '</div>'
+        : '';
+
+      const mealsHTML = MEALS.filter(meal => {
+        // Masquer dessert si vide (géré par le bouton séparé)
+        if (meal.optional && !plan[dayKey + '-' + meal.key]) return false;
+        return true;
+      }).map(meal => {
         const slotKey = dayKey + '-' + meal.key;
         const slot = plan[slotKey];
         const isChecked = shoppingChecked[wkey + '-' + slotKey];
@@ -3064,6 +3077,7 @@ const QUOTES = [
         + '<div class="week-day-date">' + formatDayDate(date) + '</div>'
         + '</div>'
         + mealsHTML
+        + dessertBtn
         + '</div>';
     }).join('');
   }
@@ -3223,12 +3237,54 @@ const QUOTES = [
       return;
     }
 
+    // Regrouper les ingrédients
+    const grouped = {};
+    ingredientLines.forEach(line => {
+      // Extraire quantité et ingrédient : "200g farine", "3 oeufs", "1 oignon"
+      const match = line.match(/^([\d,.]+\s*(?:g|kg|cl|ml|l|cs|cc|c\.s\.|c\.c\.)?)\s+(.+)$/i);
+      if (match) {
+        const qty = match[1].trim();
+        const name = match[2].trim().toLowerCase();
+        // Tenter d'additionner les quantités numériques
+        const num = parseFloat(qty.replace(',', '.'));
+        const unit = qty.replace(/[\d,.]/g, '').trim();
+        if (grouped[name]) {
+          const existing = grouped[name];
+          if (!isNaN(num) && existing.unit === unit) {
+            existing.qty += num;
+          } else {
+            existing.extras = existing.extras || [];
+            existing.extras.push(qty);
+          }
+        } else {
+          grouped[name] = { qty: isNaN(num) ? qty : num, unit, original: line };
+        }
+      } else {
+        // Pas de quantité détectée
+        const name = line.toLowerCase();
+        if (!grouped[name]) grouped[name] = { qty: null, unit: '', original: line };
+      }
+    });
+
+    // Formater la liste regroupée
+    const sortedLines = Object.entries(grouped)
+      .sort(([a], [b]) => a.localeCompare(b, 'fr'))
+      .map(([name, data]) => {
+        if (data.qty === null) return '• ' + data.original;
+        const qtyStr = typeof data.qty === 'number'
+          ? (Number.isInteger(data.qty) ? data.qty : data.qty.toFixed(0))
+          : data.qty;
+        let line = '• ' + qtyStr + (data.unit ? data.unit : '') + ' ' + name;
+        if (data.extras && data.extras.length) line += ' (+ ' + data.extras.join(', ') + ')';
+        return line;
+      });
+
     const listText = checkedSlots.map(s => {
       const slot = plan[s];
       return slot ? (slot.name || '').toUpperCase() : '';
     }).filter(Boolean).join(', ');
 
-    const text = 'Liste de courses (' + listText + ') :\n\n' + ingredientLines.join('\n');
+    const text = 'LISTE DE COURSES\n' + listText + '\n\n' + sortedLines.join('\n');
 
     document.getElementById('shopping-list-content').textContent = text;
     openModal('modal-shopping');
