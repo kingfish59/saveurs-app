@@ -1450,13 +1450,17 @@
     <div class="modal-handle"></div>
     <div class="modal-title" id="meal-modal-title">Choisir un repas</div>
     <div id="meal-current"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+      <button class="filter-btn active" id="mf-cat-all" onclick="setMealFilterCat('all',this)" style="font-size:11px;padding:5px 10px">Toutes</button>
+      <button class="filter-btn" id="mf-entree" onclick="setMealFilterCat('Entrée',this)" style="font-size:11px;padding:5px 10px">Entrée</button>
+      <button class="filter-btn" id="mf-plat" onclick="setMealFilterCat('Plat',this)" style="font-size:11px;padding:5px 10px">Plat</button>
+      <button class="filter-btn" id="mf-dessert" onclick="setMealFilterCat('Dessert',this)" style="font-size:11px;padding:5px 10px">Dessert</button>
+    </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-      <button class="filter-btn active" id="mf-all" onclick="setMealFilter('all',this)" style="font-size:11px;padding:5px 10px">Toutes</button>
-      <button class="filter-btn" id="mf-viande" onclick="setMealFilter('viande',this)" style="font-size:11px;padding:5px 10px">🥩 Viande</button>
-      <button class="filter-btn" id="mf-poisson" onclick="setMealFilter('poisson',this)" style="font-size:11px;padding:5px 10px">🐟 Poisson</button>
-      <button class="filter-btn" id="mf-vege" onclick="setMealFilter('vegé',this)" style="font-size:11px;padding:5px 10px">🥦 Végé</button>
-      <button class="filter-btn" id="mf-entree" onclick="setMealFilter('Entrée',this)" style="font-size:11px;padding:5px 10px">Entrée</button>
-      <button class="filter-btn" id="mf-dessert" onclick="setMealFilter('Dessert',this)" style="font-size:11px;padding:5px 10px">Dessert</button>
+      <button class="filter-btn active" id="mf-regime-all" onclick="setMealFilterRegime('all',this)" style="font-size:11px;padding:5px 10px">Tous</button>
+      <button class="filter-btn" id="mf-viande" onclick="setMealFilterRegime('viande',this)" style="font-size:11px;padding:5px 10px">🥩 Viande</button>
+      <button class="filter-btn" id="mf-poisson" onclick="setMealFilterRegime('poisson',this)" style="font-size:11px;padding:5px 10px">🐟 Poisson</button>
+      <button class="filter-btn" id="mf-vege" onclick="setMealFilterRegime('vegé',this)" style="font-size:11px;padding:5px 10px">🥦 Végé</button>
     </div>
     <input class="form-input compact" id="meal-search-input" type="text" placeholder="Rechercher une recette..." oninput="renderMealSearchResults(this.value)" style="margin-bottom:10px">
     <div id="meal-search-results" style="max-height:340px;overflow-y:auto"></div>
@@ -1986,14 +1990,13 @@ const QUOTES = [
         + '<div class="recipe-thumb-placeholder">' + getCategoryEmoji(r.category) + '</div>'
         + '<div class="recipe-info">'
         + '<div class="recipe-name">' + (r.name || '').toUpperCase() + (isCrown ? ' 👑' : '') + '</div>'
-        + '<div class="recipe-meta">'
+        + '<div class="recipe-meta" style="flex-wrap:wrap;gap:6px">'
         + (r.category ? '<span class="recipe-tag">' + r.category + '</span>' : '')
-
         + (r.cost ? '<span style="color:var(--gold);font-size:11px;font-weight:600">' + '\u20ac'.repeat(r.cost) + '</span>' : '')
+        + (r.prepTime ? '<span class="recipe-tag" style="color:var(--text3)">⏱ ' + r.prepTime + '</span>' : '')
+        + (r.type && r.type !== 'autre' ? '<span class="recipe-tag" style="color:var(--text3)">' + (r.type === 'viande' ? '🥩 Viande' : r.type === 'poisson' ? '🐟 Poisson' : r.type === 'vegé' ? '🥦 Végé' : '') + '</span>' : '')
         + (count > 0 ? '<span style="font-size:11px;color:var(--text3)">🍳 ' + count + 'x</span>' : '')
         + '</div>'
-        + (r.prepTime ? '<div class="recipe-tag" style="color:var(--text3)">⏱ ' + r.prepTime + '</div>' : '')
-        + (r.type && r.type !== 'autre' ? '<div class="recipe-tag" style="color:var(--text3)">' + (r.type === 'viande' ? '🥩' : r.type === 'poisson' ? '🐟' : r.type === 'vegé' ? '🥦' : '') + '</div>' : '')
         + '</div>'
         + '</div>';
     }).join('');
@@ -3162,13 +3165,12 @@ const QUOTES = [
       'dimanche-midi','dimanche-soir','dimanche-dessert'];
     const currentIdx = slotOrder.indexOf(slotKey);
 
-    // Restes = uniquement les repas AVANT le slot courant
+    // Restes = tous les repas de la semaine (sauf le slot courant et les restes)
     const previousSlots = Object.entries(plan).filter(([k, v]) => {
       if (!v || !v.name || k === slotKey) return false;
       if (v.type === 'leftovers') return false; // pas de restes de restes
-      const idx = slotOrder.indexOf(k);
-      return idx !== -1 && idx < currentIdx;
-    });
+      return true;
+    }).sort(([a], [b]) => slotOrder.indexOf(a) - slotOrder.indexOf(b));
 
     // Bouton déroulant Restes
     if (previousSlots.length > 0) {
@@ -3200,23 +3202,29 @@ const QUOTES = [
     const filtered = allRecipes.filter(r => {
       const d = typeof r.data === 'function' ? r.data() : r.data;
       const matchSearch = !norm || normalize(d.name).includes(norm);
-      const matchFilter = activeMealFilter === 'all' ? true
-        : activeMealFilter === 'viande' ? d.type === 'viande'
-        : activeMealFilter === 'poisson' ? d.type === 'poisson'
-        : activeMealFilter === 'vegé' ? d.type === 'vegé'
-        : activeMealFilter === 'Entrée' ? d.category === 'Entrée'
-        : activeMealFilter === 'Dessert' ? d.category === 'Dessert'
-        : true;
-      return matchSearch && matchFilter;
+      const matchCat = activeMealCat === 'all' ? true : d.category === activeMealCat;
+      const matchRegime = activeMealRegime === 'all' ? true : d.type === activeMealRegime;
+      return matchSearch && matchCat && matchRegime;
     }).slice(0, 30);
 
     if (filtered.length > 0) {
-      filtered.forEach(r => {
+      // Recettes déjà dans la semaine
+    const recipeIdsInWeek = new Set(
+      Object.entries(plan)
+        .filter(([k, v]) => v && v.type === 'recipe' && k !== slotKey)
+        .map(([, v]) => v.recipeId)
+    );
+
+    filtered.forEach(r => {
         const d = typeof r.data === 'function' ? r.data() : r.data;
         const meta = [d.category, d.prepTime ? '⏱ ' + d.prepTime : ''].filter(Boolean).join(' · ');
+        const alreadyInWeek = recipeIdsInWeek.has(r.id);
         const btn = document.createElement('div');
         btn.className = 'meal-option';
-        btn.innerHTML = '<div style="font-size:13px;font-weight:500;color:var(--text)">' + (d.name || '').toUpperCase() + '</div>'
+        btn.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between">'
+          + '<div style="font-size:13px;font-weight:500;color:var(--text)">' + (d.name || '').toUpperCase() + '</div>'
+          + (alreadyInWeek ? '<span style="font-size:10px;color:var(--green);letter-spacing:0.5px">Cette semaine</span>' : '')
+          + '</div>'
           + (meta ? '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + meta + '</div>' : '');
         btn.onclick = () => selectRecipe(r.id, d.name, meta);
         el.appendChild(btn);
@@ -3380,11 +3388,19 @@ const QUOTES = [
   }
 
   let currentEditSlot = null;
-  let activeMealFilter = 'all';
+  let activeMealCat = 'all';
+  let activeMealRegime = 'all';
 
-  window.setMealFilter = (filter, btn) => {
-    activeMealFilter = filter;
-    document.querySelectorAll('#modal-meal .filter-btn').forEach(b => b.classList.remove('active'));
+  window.setMealFilterCat = (filter, btn) => {
+    activeMealCat = filter;
+    document.querySelectorAll('#modal-meal .filter-btn[id^="mf-cat"], #modal-meal #mf-entree, #modal-meal #mf-plat, #modal-meal #mf-dessert, #modal-meal #mf-cat-all').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderMealSearchResults(document.getElementById('meal-search-input').value || '');
+  };
+
+  window.setMealFilterRegime = (regime, btn) => {
+    activeMealRegime = regime;
+    document.querySelectorAll('#modal-meal #mf-viande, #modal-meal #mf-poisson, #modal-meal #mf-vege, #modal-meal #mf-regime-all').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     renderMealSearchResults(document.getElementById('meal-search-input').value || '');
   };
