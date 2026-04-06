@@ -1837,6 +1837,8 @@ const QUOTES = [
         }
         await loadStats();
         await loadRecentRecipes();
+        renderProfileFAQ();
+        checkUnreadReply();
       } else {
         document.getElementById('auth-screen').classList.remove('hidden');
         document.getElementById('app').classList.add('hidden');
@@ -4027,7 +4029,7 @@ const QUOTES = [
       loadWeekPlan(getWeekKey(currentWeekOffset)).then(() => renderWeekGrid());
     }
     if (page === 'stats') loadStatsPage();
-    if (page === 'profile') {
+    if (page === 'profil') {
       renderProfileFAQ();
       checkUnreadReply();
       setMsgType('suggestion');
@@ -4161,23 +4163,24 @@ const QUOTES = [
   async function checkUnreadReply() {
     if (!currentUser) return;
     try {
-      const q = query(collection(db, 'messages'),
-        where('uid', '==', currentUser.uid),
-        where('replyRead', '==', false),
-        where('reply', '!=', null));
+      const q = query(collection(db, 'messages'), where('uid', '==', currentUser.uid));
       const snap = await getDocs(q);
+      // Filtrer côté client : reply non null et pas encore lu
+      const unreadReplies = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(d => d.reply && d.replyRead !== true);
       const badge = document.getElementById('profile-badge');
-      if (badge) badge.style.display = snap.docs.length > 0 ? 'block' : 'none';
-      // Afficher la réponse dans la zone profil
-      renderProfileReplies(snap.docs);
-    } catch(e) {}
+      if (badge) badge.style.display = unreadReplies.length > 0 ? 'block' : 'none';
+      renderProfileReplies(unreadReplies);
+    } catch(e) { console.error('checkUnreadReply:', e); }
   }
 
   function renderProfileReplies(docs) {
     const zone = document.getElementById('profile-reply-zone');
-    if (!zone || docs.length === 0) return;
+    if (!zone) return;
+    if (docs.length === 0) { zone.innerHTML = ''; return; }
     zone.innerHTML = docs.map(d => {
-      const data = d.data();
+      const data = d; // déjà un objet plain
       return `<div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:12px;padding:14px;margin-bottom:12px">
         <div style="font-size:11px;color:var(--gold);letter-spacing:1px;margin-bottom:6px">Réponse de Frédéric</div>
         <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:10px">${data.reply}</div>
@@ -4190,8 +4193,7 @@ const QUOTES = [
     try {
       await updateDoc(doc(db, 'messages', msgId), { replyRead: true });
       await checkUnreadReply();
-      document.getElementById('profile-reply-zone').innerHTML = '';
-    } catch(e) {}
+    } catch(e) { console.error('markReplyRead:', e); }
   };
 
   window.showToast = (msg) => {

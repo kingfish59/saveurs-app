@@ -687,43 +687,79 @@
       const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       const unread = msgs.filter(m => !m.readByAdmin).length;
 
-      // Badge
       const badge = document.getElementById('messages-badge');
       const headerBadge = document.getElementById('admin-msg-badge');
       if (badge) { badge.style.display = unread > 0 ? 'inline' : 'none'; badge.textContent = unread + ' nouveau' + (unread > 1 ? 'x' : ''); }
       if (headerBadge) headerBadge.style.display = unread > 0 ? 'block' : 'none';
 
-      const typeLabels = { suggestion: '💡 Suggestion', bug: '🐛 Bug', avis: '⭐ Avis' };
       const el = document.getElementById('messages-list');
+      if (msgs.length === 0) { el.innerHTML = '<div class="empty">Aucun message</div>'; return; }
 
-      if (msgs.length === 0) {
-        el.innerHTML = '<div class="empty">Aucun message</div>';
-        return;
+      const typeLabels = { suggestion: '💡 Suggestion', bug: '🐛 Bug', avis: '⭐ Avis' };
+      const unreadMsgs = msgs.filter(m => !m.readByAdmin);
+      const readMsgs = msgs.filter(m => m.readByAdmin);
+
+      let html = '';
+
+      // Messages non lus — affichage complet
+      if (unreadMsgs.length > 0) {
+        unreadMsgs.forEach(m => {
+          const date = m.createdAt?.toDate?.()?.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) || '—';
+          html += `<div style="background:var(--surface);border:1px solid rgba(201,168,76,0.3);border-radius:12px;padding:16px;margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <strong style="color:var(--text)">${m.displayName||'—'}</strong>
+                <span class="badge">${typeLabels[m.type]||m.type}</span>
+                <span class="badge" style="background:rgba(201,76,76,0.15);color:#c94c4c;border-color:rgba(201,76,76,0.3)">Nouveau</span>
+              </div>
+              <span style="font-size:11px;color:var(--text3)">${date}</span>
+            </div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:10px">${m.text}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button onclick="markMessageRead('${m.id}')" class="btn-secondary" style="font-size:11px;padding:5px 10px">✓ Marquer lu</button>
+              <button onclick="openReplyModal('${m.id}','${(m.displayName||'').replace(/'/g,'')}')" class="btn-gold" style="font-size:11px;padding:5px 10px">↩ Répondre</button>
+            </div>
+          </div>`;
+        });
       }
 
-      el.innerHTML = msgs.map(m => {
-        const date = m.createdAt?.toDate?.()?.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) || '—';
-        return `<div style="background:var(--surface);border:1px solid rgba(201,168,76,${m.readByAdmin ? '0.08' : '0.25'});border-radius:12px;padding:16px;margin-bottom:10px">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap;gap:6px">
-            <div style="display:flex;align-items:center;gap:8px">
-              <strong style="color:var(--text)">${m.displayName || '—'}</strong>
-              <span class="badge">${typeLabels[m.type] || m.type}</span>
-              ${!m.readByAdmin ? '<span class="badge" style="background:rgba(201,76,76,0.15);color:#c94c4c;border-color:rgba(201,76,76,0.3)">Non lu</span>' : ''}
+      // Messages lus/répondus — condensés, cliquables pour développer
+      if (readMsgs.length > 0) {
+        html += `<div style="font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin:16px 0 8px">Archivés (${readMsgs.length})</div>`;
+        readMsgs.forEach(m => {
+          const date = m.createdAt?.toDate?.()?.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) || '—';
+          const shortText = m.text.length > 50 ? m.text.substring(0, 50) + '…' : m.text;
+          html += `<details style="background:var(--surface);border:1px solid rgba(201,168,76,0.06);border-radius:10px;margin-bottom:6px;overflow:hidden">
+            <summary style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;list-style:none">
+              <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1">
+                <span style="font-size:11px;color:var(--text3);flex-shrink:0">${typeLabels[m.type]||m.type}</span>
+                <span style="font-size:13px;color:var(--text2);flex-shrink:0">${m.displayName||'—'}</span>
+                <span style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${shortText}</span>
+              </div>
+              <span style="font-size:11px;color:var(--text3);flex-shrink:0">${date} ${m.reply ? '↩' : ''}</span>
+            </summary>
+            <div style="padding:12px 14px;border-top:1px solid rgba(201,168,76,0.06)">
+              <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:8px">${m.text}</div>
+              ${m.reply ? `<div style="background:rgba(201,168,76,0.08);border-radius:8px;padding:10px;font-size:12px;color:var(--text3)">↩ ${m.reply}</div>` : ''}
+              <button onclick="openReplyModal('${m.id}','${(m.displayName||'').replace(/'/g,'')}')" class="btn-secondary" style="font-size:11px;padding:5px 10px;margin-top:10px">↩ ${m.reply ? 'Modifier la réponse' : 'Répondre'}</button>
             </div>
-            <span style="font-size:11px;color:var(--text3)">${date}</span>
-          </div>
-          <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:10px">${m.text}</div>
-          ${m.reply ? `<div style="background:rgba(201,168,76,0.08);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px;color:var(--text3)">Répondu : ${m.reply}</div>` : ''}
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            ${!m.readByAdmin ? `<button onclick="markMessageRead('${m.id}')" class="btn-secondary" style="font-size:11px;padding:5px 10px">✓ Marquer lu</button>` : ''}
-            <button onclick="openReplyModal('${m.id}','${(m.displayName||'').replace(/'/g,'')}')" class="btn-gold" style="font-size:11px;padding:5px 10px">↩ Répondre</button>
-          </div>
-        </div>`;
-      }).join('');
+          </details>`;
+        });
+      }
+
+      el.innerHTML = html;
     } catch(e) {
       document.getElementById('messages-list').innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>';
     }
   }
+
+  window.toggleHistorique = (el) => {
+    const div = document.getElementById('msg-historique');
+    if (!div) return;
+    const isHidden = div.style.display === 'none';
+    div.style.display = isHidden ? 'block' : 'none';
+    el.querySelector('span').textContent = isHidden ? '▲' : '▼';
+  };
 
   window.markMessageRead = async (id) => {
     await updateDoc(doc(db, 'messages', id), { readByAdmin: true });
