@@ -1198,6 +1198,9 @@
         <button onclick="resetWeek()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🗑 Effacer</button>
         <button onclick="generateWeekPDF()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">📄 PDF</button>
       </div>
+      <div style="margin-bottom:16px">
+        <button onclick="openDuplicateModal()" style="width:100%;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">📋 Dupliquer cette semaine vers...</button>
+      </div>
 
       <!-- Grille semaine -->
       <div id="week-grid"></div>
@@ -1507,6 +1510,27 @@
     <button class="detail-delete-btn" onclick="confirmDelete()" title="Supprimer">🗑</button>
   </div>
   <div class="detail-content" id="detail-content"></div>
+</div>
+
+<!-- MODAL DUPLIQUER SEMAINE -->
+<div class="modal-overlay" id="modal-duplicate">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Dupliquer vers...</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Sélectionne la semaine de destination :</p>
+
+    <!-- Navigation mois -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <button onclick="dupCalPrev()" style="background:none;border:none;color:var(--gold);font-size:22px;cursor:pointer;padding:4px 10px">‹</button>
+      <div id="dup-cal-label" style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--text);letter-spacing:1px"></div>
+      <button onclick="dupCalNext()" style="background:none;border:none;color:var(--gold);font-size:22px;cursor:pointer;padding:4px 10px">›</button>
+    </div>
+
+    <!-- Grille semaines -->
+    <div id="dup-cal-grid" style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto"></div>
+
+    <button class="btn-secondary" style="margin-top:14px" onclick="closeModal('modal-duplicate')">Annuler</button>
+  </div>
 </div>
 
 <!-- MODAL PDF PREVIEW -->
@@ -3481,6 +3505,119 @@ const QUOTES = [
     document.body.appendChild(div);
     window.print();
     setTimeout(() => div.remove(), 1000);
+  };
+
+  let dupCalOffset = 0; // offset en mois par rapport au mois courant
+
+  function getWeeksInMonth(year, month) {
+    // Retourne toutes les semaines (lundi) qui ont au moins un jour dans ce mois
+    const weeks = [];
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    // Trouver le premier lundi du mois ou avant
+    let d = new Date(firstDay);
+    const dow = d.getDay();
+    d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+    while (d <= lastDay) {
+      weeks.push(new Date(d));
+      d = new Date(d); d.setDate(d.getDate() + 7);
+    }
+    return weeks;
+  }
+
+  function renderDupCalendar() {
+    const now = new Date();
+    const targetMonth = new Date(now.getFullYear(), now.getMonth() + dupCalOffset, 1);
+    const year = targetMonth.getFullYear();
+    const month = targetMonth.getMonth();
+    const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+    document.getElementById('dup-cal-label').textContent = MONTHS[month] + ' ' + year;
+
+    const sourceWkey = getWeekKey(currentWeekOffset);
+    const weeks = getWeeksInMonth(year, month);
+    const grid = document.getElementById('dup-cal-grid');
+    grid.innerHTML = '';
+
+    weeks.forEach(mondayDate => {
+      const sundayDate = new Date(mondayDate); sundayDate.setDate(mondayDate.getDate() + 6);
+      const weekNum = (() => {
+        const d = new Date(mondayDate);
+        const yearStart = new Date(d.getFullYear(), 0, 1);
+        return Math.ceil(((d - yearStart) / 86400000 + yearStart.getDay() + 1) / 7);
+      })();
+      const wkey = mondayDate.getFullYear() + '-W' + String(weekNum).padStart(2, '0');
+      const isSource = wkey === sourceWkey;
+      const filled = weekPlan[wkey] && Object.values(weekPlan[wkey]).filter(s => s && s.name).length > 0;
+
+      const btn = document.createElement('div');
+      btn.style.cssText = 'padding:10px 14px;border-radius:var(--radius-sm);background:var(--surface);'
+        + 'border:1px solid rgba(201,168,76,' + (isSource ? '0.6' : filled ? '0.35' : '0.15') + ');'
+        + 'cursor:' + (isSource ? 'default' : 'pointer') + ';'
+        + 'display:flex;justify-content:space-between;align-items:center;'
+        + 'opacity:' + (isSource ? '0.5' : '1') + ';';
+
+      const dateStr = formatDayDate(mondayDate) + ' — ' + formatDayDate(sundayDate);
+      btn.innerHTML = '<div>'
+        + '<div style="font-size:13px;color:var(--text);font-weight:500">Semaine ' + weekNum + '</div>'
+        + '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + dateStr + '</div>'
+        + (filled && !isSource ? '<div style="font-size:10px;color:var(--gold);margin-top:2px">⚠️ Déjà planifiée</div>' : '')
+        + (isSource ? '<div style="font-size:10px;color:var(--text3);margin-top:2px">Semaine source</div>' : '')
+        + '</div>'
+        + (!isSource ? '<span style="color:var(--gold);font-size:18px">›</span>' : '');
+
+      if (!isSource) {
+        // Calculer l'offset de destination
+        const today = new Date(); today.setHours(0,0,0,0);
+        const todayMon = new Date(today); const td = today.getDay(); todayMon.setDate(today.getDate() - (td === 0 ? 6 : td - 1));
+        const diffDays = (mondayDate - todayMon) / 86400000;
+        const destOffset = Math.round(diffDays / 7);
+        btn.onclick = () => duplicateWeek(sourceWkey, wkey, destOffset);
+      }
+      grid.appendChild(btn);
+    });
+  }
+
+  window.dupCalPrev = () => { dupCalOffset--; renderDupCalendar(); };
+  window.dupCalNext = () => { dupCalOffset++; renderDupCalendar(); };
+
+  window.openDuplicateModal = async () => {
+    const sourceWkey = getWeekKey(currentWeekOffset);
+    const sourcePlan = weekPlan[sourceWkey] || {};
+    const filledSlots = Object.values(sourcePlan).filter(s => s && s.name).length;
+    if (filledSlots === 0) { showToast('Cette semaine est vide'); return; }
+
+    // Centrer le calendrier sur le mois de la semaine source
+    const ws = getWeekStart(currentWeekOffset);
+    const now = new Date();
+    dupCalOffset = (ws.getFullYear() - now.getFullYear()) * 12 + ws.getMonth() - now.getMonth();
+
+    // Précharger les semaines du mois
+    openModal('modal-duplicate');
+    renderDupCalendar();
+  };
+
+  window.duplicateWeek = async (sourceWkey, destWkey, destOffset) => {
+    const sourcePlan = weekPlan[sourceWkey] || {};
+    if (Object.keys(sourcePlan).length === 0) { showToast('Semaine source vide'); return; }
+
+    const destLabel = 'semaine ' + destWkey.split('-W')[1];
+    if (weekPlan[destWkey] && Object.values(weekPlan[destWkey]).filter(s => s && s.name).length > 0) {
+      if (!confirm('La ' + destLabel + ' est déjà planifiée. Écraser ?')) return;
+    }
+
+    try {
+      weekPlan[destWkey] = JSON.parse(JSON.stringify(sourcePlan)); // deep copy
+      await saveWeekPlan(destWkey);
+      closeModal('modal-duplicate');
+      showToast('Semaine dupliquée !');
+      // Naviguer vers la semaine de destination
+      currentWeekOffset = destOffset;
+      await loadWeekPlan(destWkey);
+      renderWeekGrid();
+    } catch(e) {
+      showToast('Erreur : ' + e.message);
+    }
   };
 
   window.resetWeek = async () => {
