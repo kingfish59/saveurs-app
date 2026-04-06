@@ -1102,18 +1102,19 @@
           <option value="cuisinee">Plus cuisinée</option>
         </select>
       </div>
-      <div class="filters-row" id="filters-row">
-        <button class="filter-btn active" data-filter="all" onclick="setFilter('all',this)">Toutes</button>
-        <button class="filter-btn" data-filter="Entrée" onclick="setFilter('Entrée',this)">Entrées</button>
-        <button class="filter-btn" data-filter="Plat" onclick="setFilter('Plat',this)">Plats</button>
-        <button class="filter-btn" data-filter="Soupe / Potage" onclick="setFilter('Soupe / Potage',this)">Soupes</button>
-        <button class="filter-btn" data-filter="Dessert" onclick="setFilter('Dessert',this)">Desserts</button>
-        <button class="filter-btn" data-filter="Apéritif" onclick="setFilter('Apéritif',this)">Apéritifs</button>
-        <button class="filter-btn" data-filter="★★★★★" onclick="setFilter('top',this)">⭐ Top</button>
-        <button class="filter-btn" data-filter="viande" onclick="setFilter('viande',this)">🥩 Viande</button>
-        <button class="filter-btn" data-filter="poisson" onclick="setFilter('poisson',this)">🐟 Poisson</button>
-        <button class="filter-btn" data-filter="vegé" onclick="setFilter('vegé',this)">🥦 Végé</button>
-        <button class="filter-btn" data-filter="ancien" onclick="setFilter('ancien',this)">🕰 Oubliées</button>
+      <div class="filters-row" id="filters-cat">
+        <button class="filter-btn active" data-cat="all" onclick="setFilterCat('all',this)">Toutes</button>
+        <button class="filter-btn" data-cat="Entrée" onclick="setFilterCat('Entrée',this)">Entrées</button>
+        <button class="filter-btn" data-cat="Plat" onclick="setFilterCat('Plat',this)">Plats</button>
+        <button class="filter-btn" data-cat="Dessert" onclick="setFilterCat('Dessert',this)">Desserts</button>
+        <button class="filter-btn" data-cat="Apéritif" onclick="setFilterCat('Apéritif',this)">Apéritifs</button>
+        <button class="filter-btn" data-cat="ancien" onclick="setFilterCat('ancien',this)">🕰 Oubliées</button>
+      </div>
+      <div class="filters-row" id="filters-regime" style="margin-top:-4px">
+        <button class="filter-btn active" data-regime="all" onclick="setFilterRegime('all',this)">Tous</button>
+        <button class="filter-btn" data-regime="viande" onclick="setFilterRegime('viande',this)">🥩 Viande</button>
+        <button class="filter-btn" data-regime="poisson" onclick="setFilterRegime('poisson',this)">🐟 Poisson</button>
+        <button class="filter-btn" data-regime="vegé" onclick="setFilterRegime('vegé',this)">🥦 Végé</button>
       </div>
       <div id="recipes-list">
         <div class="empty-state">
@@ -1892,6 +1893,7 @@ const QUOTES = [
   }
 
   let activeFilter = 'all';
+  let activeRegime = 'all';
   let cookCounts = {}; // { recipeId: count }
   let topRecipeId = null;
 
@@ -1944,13 +1946,12 @@ const QUOTES = [
         normalize(r.name).includes(search) ||
         normalize(r.ingredients).includes(search) ||
         normalize(r.category).includes(search);
-      const matchFilter = activeFilter === 'all' ? true :
+      const matchCat = activeFilter === 'all' ? true :
         activeFilter === 'top' ? (r.rating >= 4) :
-        activeFilter === 'viande' ? (r.type === 'viande') :
-        activeFilter === 'poisson' ? (r.type === 'poisson') :
-        activeFilter === 'vegé' ? (r.type === 'vegé') :
         activeFilter === 'ancien' ? true :
         r.category === activeFilter;
+      const matchRegime = activeRegime === 'all' ? true : r.type === activeRegime;
+      const matchFilter = matchCat && matchRegime;
       return matchSearch && matchFilter;
     });
 
@@ -2001,6 +2002,22 @@ const QUOTES = [
   window.setFilter = (filter, btn) => {
     activeFilter = filter;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const el = document.getElementById('recipes-list');
+    renderFiltered(allRecipes.map(r => ({ id: r.id, data: () => r.data })), el);
+  };
+
+  window.setFilterCat = (filter, btn) => {
+    activeFilter = filter;
+    document.querySelectorAll('#filters-cat .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const el = document.getElementById('recipes-list');
+    renderFiltered(allRecipes.map(r => ({ id: r.id, data: () => r.data })), el);
+  };
+
+  window.setFilterRegime = (regime, btn) => {
+    activeRegime = regime;
+    document.querySelectorAll('#filters-regime .filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const el = document.getElementById('recipes-list');
     renderFiltered(allRecipes.map(r => ({ id: r.id, data: () => r.data })), el);
