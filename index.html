@@ -1675,7 +1675,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, collection, doc, addDoc, getDocs, getDoc, setDoc, updateDoc, query, orderBy, limit, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, collection, doc, addDoc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, orderBy, limit, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   // -- CONFIG FIREBASE --
   const firebaseConfig = {
@@ -1840,8 +1840,6 @@ const QUOTES = [
         renderProfileFAQ();
         checkUnreadReply();
         setMsgType('suggestion');
-        renderProfileFAQ();
-        checkUnreadReply();
       } else {
         document.getElementById('auth-screen').classList.remove('hidden');
         document.getElementById('app').classList.add('hidden');
@@ -2096,7 +2094,7 @@ const QUOTES = [
       ]);
       document.getElementById('stat-recipes').textContent = recipesSnap.size;
       document.getElementById('stat-cooked').textContent = historySnap.size;
-    } catch (e) {}
+    } catch (e) { console.error('loadStatsPage:', e); }
   }
 
   async function loadRecentRecipes() {
@@ -2523,12 +2521,12 @@ const QUOTES = [
       const gid = userGroupId || currentUser.uid;
       const [recipesSnap, historySnap] = await Promise.all([
         getDocs(getRecipesRef()),
-        getDocs(query(collection(db, 'groups', gid, 'history'), orderBy('date', 'desc')))
+        getDocs(collection(db, 'groups', gid, 'history'))
       ]);
 
       const recipes = {};
       recipesSnap.docs.forEach(d => { recipes[d.id] = d.data(); });
-      const history = historySnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const history = historySnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.date||'').localeCompare(a.date||''));
 
       // Comptage par recette
       const counts = {};
@@ -2771,7 +2769,6 @@ const QUOTES = [
   window.deleteRecipe = async () => {
     try {
       const gid = userGroupId || currentUser.uid;
-      const { deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
       await deleteDoc(doc(db, 'groups', gid, 'recipes', currentRecipeId));
       closeDetail();
       showToast('Recette supprimée');
