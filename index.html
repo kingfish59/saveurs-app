@@ -1110,7 +1110,9 @@
         <button class="filter-btn" data-filter="Dessert" onclick="setFilter('Dessert',this)">Desserts</button>
         <button class="filter-btn" data-filter="Apéritif" onclick="setFilter('Apéritif',this)">Apéritifs</button>
         <button class="filter-btn" data-filter="★★★★★" onclick="setFilter('top',this)">⭐ Top</button>
-        <button class="filter-btn" data-filter="minute" onclick="setFilter('minute',this)">⚡ Minute</button>
+        <button class="filter-btn" data-filter="viande" onclick="setFilter('viande',this)">🥩 Viande</button>
+        <button class="filter-btn" data-filter="poisson" onclick="setFilter('poisson',this)">🐟 Poisson</button>
+        <button class="filter-btn" data-filter="vegé" onclick="setFilter('vegé',this)">🥦 Végé</button>
         <button class="filter-btn" data-filter="ancien" onclick="setFilter('ancien',this)">🕰 Oubliées</button>
       </div>
       <div id="recipes-list">
@@ -1273,7 +1275,6 @@
         <option value="">-- Choisir --</option>
         <option>Entrée</option>
         <option>Plat</option>
-        <option>Soupe / Potage</option>
         <option>Dessert</option>
         <option>Apéritif</option>
         <option>Petit-déjeuner</option>
@@ -1281,11 +1282,13 @@
       </select>
     </div>
     <div class="form-group">
-      <label class="form-label">Type de recette</label>
+      <label class="form-label">Régime</label>
       <select class="form-input compact" id="r-type">
         <option value="">-- Choisir --</option>
-        <option value="minute">Recette minute</option>
-        <option value="avance">Peut se préparer à l'avance</option>
+        <option value="viande">Viande</option>
+        <option value="poisson">Poisson</option>
+        <option value="vegé">Végétarien</option>
+        <option value="autre">Autre</option>
       </select>
     </div>
     <div class="form-group">
@@ -1308,16 +1311,7 @@
       <label class="form-label">Instructions</label>
       <textarea class="form-input large" id="r-instructions" placeholder="Étapes de préparation..."></textarea>
     </div>
-    <div class="form-group">
-      <label class="form-label">Note</label>
-      <div class="star-rating" id="star-rating">
-        <button class="star-btn" data-val="1" onclick="setRating(1)">★</button>
-        <button class="star-btn" data-val="2" onclick="setRating(2)">★</button>
-        <button class="star-btn" data-val="3" onclick="setRating(3)">★</button>
-        <button class="star-btn" data-val="4" onclick="setRating(4)">★</button>
-        <button class="star-btn" data-val="5" onclick="setRating(5)">★</button>
-      </div>
-    </div>
+
     <div class="form-group">
       <label class="form-label">Coût</label>
       <div style="display:flex;gap:10px">
@@ -1349,7 +1343,6 @@
         <option value="">— Choisir —</option>
         <option>Entrée</option>
         <option>Plat</option>
-        <option>Soupe / Potage</option>
         <option>Dessert</option>
         <option>Apéritif</option>
         <option>Petit-déjeuner</option>
@@ -1357,11 +1350,13 @@
       </select>
     </div>
     <div class="form-group">
-      <label class="form-label">Type de recette</label>
+      <label class="form-label">Régime</label>
       <select class="form-input compact" id="e-type">
         <option value="">— Choisir —</option>
-        <option value="minute">Recette minute</option>
-        <option value="avance">Peut se préparer à l'avance</option>
+        <option value="viande">Viande</option>
+        <option value="poisson">Poisson</option>
+        <option value="vegé">Végétarien</option>
+        <option value="autre">Autre</option>
       </select>
     </div>
     <div class="form-group">
@@ -1384,16 +1379,7 @@
       <label class="form-label">Instructions</label>
       <textarea class="form-input large" id="e-instructions" placeholder="Étapes de préparation..."></textarea>
     </div>
-    <div class="form-group">
-      <label class="form-label">Note</label>
-      <div class="star-rating" id="edit-star-rating">
-        <button class="star-btn" data-val="1" onclick="setEditRating(1)">★</button>
-        <button class="star-btn" data-val="2" onclick="setEditRating(2)">★</button>
-        <button class="star-btn" data-val="3" onclick="setEditRating(3)">★</button>
-        <button class="star-btn" data-val="4" onclick="setEditRating(4)">★</button>
-        <button class="star-btn" data-val="5" onclick="setEditRating(5)">★</button>
-      </div>
-    </div>
+
     <div class="form-group">
       <label class="form-label">Coût</label>
       <div style="display:flex;gap:10px">
@@ -1463,6 +1449,14 @@
     <div class="modal-handle"></div>
     <div class="modal-title" id="meal-modal-title">Choisir un repas</div>
     <div id="meal-current"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="filter-btn active" id="mf-all" onclick="setMealFilter('all',this)" style="font-size:11px;padding:5px 10px">Toutes</button>
+      <button class="filter-btn" id="mf-viande" onclick="setMealFilter('viande',this)" style="font-size:11px;padding:5px 10px">🥩 Viande</button>
+      <button class="filter-btn" id="mf-poisson" onclick="setMealFilter('poisson',this)" style="font-size:11px;padding:5px 10px">🐟 Poisson</button>
+      <button class="filter-btn" id="mf-vege" onclick="setMealFilter('vegé',this)" style="font-size:11px;padding:5px 10px">🥦 Végé</button>
+      <button class="filter-btn" id="mf-entree" onclick="setMealFilter('Entrée',this)" style="font-size:11px;padding:5px 10px">Entrée</button>
+      <button class="filter-btn" id="mf-dessert" onclick="setMealFilter('Dessert',this)" style="font-size:11px;padding:5px 10px">Dessert</button>
+    </div>
     <input class="form-input compact" id="meal-search-input" type="text" placeholder="Rechercher une recette..." oninput="renderMealSearchResults(this.value)" style="margin-bottom:10px">
     <div id="meal-search-results" style="max-height:340px;overflow-y:auto"></div>
     <button class="btn-secondary" style="margin-top:12px" onclick="closeModal('modal-meal')">Annuler</button>
@@ -1952,7 +1946,9 @@ const QUOTES = [
         normalize(r.category).includes(search);
       const matchFilter = activeFilter === 'all' ? true :
         activeFilter === 'top' ? (r.rating >= 4) :
-        activeFilter === 'minute' ? (r.type === 'minute') :
+        activeFilter === 'viande' ? (r.type === 'viande') :
+        activeFilter === 'poisson' ? (r.type === 'poisson') :
+        activeFilter === 'vegé' ? (r.type === 'vegé') :
         activeFilter === 'ancien' ? true :
         r.category === activeFilter;
       return matchSearch && matchFilter;
@@ -1981,7 +1977,7 @@ const QUOTES = [
     el.innerHTML = filtered.map(d => {
       const id = d.id;
       const r = d.data ? d.data() : d.data;
-      const stars = r.rating ? '★'.repeat(r.rating) : '';
+
       const count = cookCounts[id] || 0;
       const isCrown = topRecipeId === id && count > 0;
       return '<div class="recipe-card" onclick="openRecipe(\'' + id + '\')" style="position:relative">'
@@ -1991,11 +1987,12 @@ const QUOTES = [
         + '<div class="recipe-name">' + (r.name || '').toUpperCase() + (isCrown ? ' 👑' : '') + '</div>'
         + '<div class="recipe-meta">'
         + (r.category ? '<span class="recipe-tag">' + r.category + '</span>' : '')
-        + (stars ? '<span class="recipe-stars">' + stars + '</span>' : '')
+
         + (r.cost ? '<span style="color:var(--gold);font-size:11px;font-weight:600">' + '\u20ac'.repeat(r.cost) + '</span>' : '')
         + (count > 0 ? '<span style="font-size:11px;color:var(--text3)">🍳 ' + count + 'x</span>' : '')
         + '</div>'
         + (r.prepTime ? '<div class="recipe-tag" style="color:var(--text3)">⏱ ' + r.prepTime + '</div>' : '')
+        + (r.type && r.type !== 'autre' ? '<div class="recipe-tag" style="color:var(--text3)">' + (r.type === 'viande' ? '🥩' : r.type === 'poisson' ? '🐟' : r.type === 'vegé' ? '🥦' : '') + '</div>' : '')
         + '</div>'
         + '</div>';
     }).join('');
@@ -2056,8 +2053,9 @@ const QUOTES = [
     }
     if (!recipe) { showToast('Recette introuvable'); return; }
     const r = typeof recipe.data === 'function' ? recipe.data() : recipe.data;
-    const stars = r.rating ? '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating) : '';
-    const typeLabel = r.type === 'minute' ? '⚡ Recette minute' : r.type === 'avance' ? "🕐 À préparer à l'avance" : '';
+
+    const typeLabels = { viande: '🥩 Viande', poisson: '🐟 Poisson', 'vegé': '🥦 Végétarien', autre: '' };
+    const typeLabel = typeLabels[r.type] || '';
 
     let ingredientsHTML = '';
     if (r.ingredients) {
@@ -2088,7 +2086,7 @@ const QUOTES = [
         ${r.servings ? `<span class="detail-badge">👥 ${r.servings} pers.</span>` : ''}
         ${typeLabel ? `<span class="detail-badge">${typeLabel}</span>` : ''}
         ${r.cost ? `<span class="detail-badge" style="color:var(--gold);border-color:rgba(201,168,76,0.3);background:var(--gold-dim)">${'\u20ac'.repeat(r.cost)}</span>` : ''}
-        ${stars ? `<div class="detail-stars">${stars}</div>` : ''}
+
       </div>
       ${ingredientsHTML}
       ${instructionsHTML}
@@ -3184,7 +3182,15 @@ const QUOTES = [
     // Recettes
     const filtered = allRecipes.filter(r => {
       const d = typeof r.data === 'function' ? r.data() : r.data;
-      return !norm || normalize(d.name).includes(norm);
+      const matchSearch = !norm || normalize(d.name).includes(norm);
+      const matchFilter = activeMealFilter === 'all' ? true
+        : activeMealFilter === 'viande' ? d.type === 'viande'
+        : activeMealFilter === 'poisson' ? d.type === 'poisson'
+        : activeMealFilter === 'vegé' ? d.type === 'vegé'
+        : activeMealFilter === 'Entrée' ? d.category === 'Entrée'
+        : activeMealFilter === 'Dessert' ? d.category === 'Dessert'
+        : true;
+      return matchSearch && matchFilter;
     }).slice(0, 30);
 
     if (filtered.length > 0) {
@@ -3357,6 +3363,14 @@ const QUOTES = [
   }
 
   let currentEditSlot = null;
+  let activeMealFilter = 'all';
+
+  window.setMealFilter = (filter, btn) => {
+    activeMealFilter = filter;
+    document.querySelectorAll('#modal-meal .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderMealSearchResults(document.getElementById('meal-search-input').value || '');
+  };
 
   window.switchPage = (page) => {
     if (page === 'semainier') {
