@@ -252,8 +252,11 @@
 
     <!-- Utilisateurs -->
     <div class="section">
-      <div class="section-title">Utilisateurs</div>
-      <div id="users-table"><div class="loading">Chargement...</div></div>
+      <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleUsers()">
+        <span>Utilisateurs <span id="users-count" style="font-size:14px;color:var(--text3)"></span></span>
+        <span id="users-toggle-icon" style="font-size:18px;color:var(--gold)">▼</span>
+      </div>
+      <div id="users-table" style="display:none"><div class="loading">Chargement...</div></div>
     </div>
 
     <!-- Groupes -->
@@ -352,6 +355,13 @@
     loadDashboard();
   });
 
+  let usersVisible = false;
+  window.toggleUsers = () => {
+    usersVisible = !usersVisible;
+    document.getElementById('users-table').style.display = usersVisible ? 'block' : 'none';
+    document.getElementById('users-toggle-icon').textContent = usersVisible ? '▲' : '▼';
+  };
+
   window.loadDashboard = async () => {
     document.getElementById('last-refresh').textContent = 'Actualisation...';
     try {
@@ -365,6 +375,7 @@
   async function loadUsers() {
     const snap = await getDocs(collection(db, 'users'));
     document.getElementById('stat-users').textContent = snap.docs.length;
+    document.getElementById('users-count').textContent = '(' + snap.docs.length + ')';
 
     const rows = snap.docs.map(d => {
       const u = d.data();
