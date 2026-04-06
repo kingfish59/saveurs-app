@@ -4071,131 +4071,31 @@ const QUOTES = [
 
   window.shareApp = async () => {
     const userName = currentUser?.displayName?.split(' ')[0] || 'Frédéric';
-    const text = userName + " t'invite à utiliser Saveurs, l'appli de recettes familiales !\n\n🍲 Ouvrir l'appli :\nhttps://saveurs-app.vercel.app\n\n📖 Mode d'emploi :\nhttps://saveurs-app.vercel.app/saveurs-guide.html\n\nConnecte-toi avec ton compte Google puis rejoins le groupe famille.";
+    const msg = [
+      userName + " t'invite à utiliser Saveurs, l'appli de recettes familiales !",
+      "",
+      "🍲 Ouvrir l'appli :",
+      "https://saveurs-app.vercel.app",
+      "",
+      "📖 Mode d'emploi :",
+      "https://saveurs-app.vercel.app/saveurs-guide.html",
+      "",
+      "Connecte-toi avec ton compte Google puis rejoins le groupe famille.",
+      "",
+      "N'hésite pas à partager l'appli autour de toi 😉"
+    ].join("\n");
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'Saveurs — Recettes familiales', text });
+        await navigator.share({ title: 'Saveurs', text: msg });
       } catch(e) {
         if (e.name !== 'AbortError') {
-          // Fallback SMS
-          window.location.href = 'sms:?body=' + encodeURIComponent(text);
+          window.location.href = 'sms:?body=' + encodeURIComponent(msg);
         }
       }
     } else {
-      window.location.href = 'sms:?body=' + encodeURIComponent(text);
+      window.location.href = 'sms:?body=' + encodeURIComponent(msg);
     }
   };
-
-    // ===== FAQ PROFIL =====
-  const FAQ = [
-    { q: "Comment ajouter une recette ?", a: "Appuyez sur + en bas de l'écran. Remplissez les champs ou utilisez un des boutons d'import (URL, photo, PDF)." },
-    { q: "Comment importer depuis un site ?", a: "Dans le formulaire d'ajout, appuyez sur 'Importer depuis une URL', collez le lien et validez. Les champs se remplissent automatiquement." },
-    { q: "Comment importer depuis une photo ou un PDF ?", a: "Dans le formulaire d'ajout, utilisez 'Importer depuis une photo' ou 'Importer depuis un PDF'. L'IA extrait la recette automatiquement." },
-    { q: "Comment créer un groupe famille ?", a: "Allez dans Profil → Groupe famille → 'Créer un groupe'. Un code à 6 lettres est généré à partager avec votre famille." },
-    { q: "Comment rejoindre un groupe famille ?", a: "Profil → Groupe famille → entrez le code à 6 lettres fourni par le créateur et appuyez sur 'Rejoindre'." },
-    { q: "Comment planifier les repas de la semaine ?", a: "Dans l'onglet Semainier, appuyez sur un slot Midi ou Soir pour choisir une recette. Naviguez entre semaines avec ‹ ›." },
-    { q: "Comment ajouter un dessert ?", a: "Dans le semainier, chaque jour affiche un petit bouton '+ Dessert' en bas. Appuyez dessus pour l'activer." },
-    { q: "Comment créer la liste de courses ?", a: "Dans le semainier, cochez les repas avec ✓, puis 'Liste de courses'. Décochez ce que vous avez déjà et appuyez sur 'Générer la liste'." },
-    { q: "Comment dupliquer une semaine ?", a: "Dans le semainier → 'Dupliquer cette semaine vers...', naviguez au mois voulu et choisissez la semaine de destination." },
-    { q: "Comment noter qu'on a cuisiné une recette ?", a: "Ouvrez la recette, appuyez sur 'J'ai cuisiné ce plat', indiquez la date, le nombre de convives et les invités." },
-    { q: "Comment voir les restes ?", a: "Dans le semainier, quand vous choisissez un repas, les plats déjà planifiés cette semaine apparaissent en section 'Restes' en vert." },
-    { q: "Comment filtrer les recettes ?", a: "Sur la page Recettes, utilisez les deux rangées de filtres : catégorie (Plat, Dessert...) et régime (Viande, Poisson, Végé). Les deux se combinent." },
-    { q: "Comment exporter le planning en PDF ?", a: "Dans le semainier → 'PDF'. Le planning est généré en A4. Appuyez sur 'Partager / Enregistrer' pour le sauvegarder." },
-    { q: "Comment ajouter l'appli sur mon écran d'accueil ?", a: "Sur iPhone : ouvrez l'appli dans Safari, appuyez sur Partager puis 'Sur l'écran d'accueil'. Sur Android : menu du navigateur → 'Ajouter à l'écran d'accueil'." },
-    { q: "Comment partager l'application ?", a: "Allez dans Profil et appuyez sur 'Partager l'application'. Un message avec le lien est prêt à envoyer par SMS ou WhatsApp." },
-  ];
-
-  function renderProfileFAQ() {
-    const list = document.getElementById('profile-faq-list');
-    if (!list) return;
-    list.innerHTML = FAQ.map((item, i) => `
-      <div style="border-bottom:1px solid rgba(201,168,76,0.08)">
-        <button onclick="toggleProfileFAQ(${i})" style="width:100%;text-align:left;background:none;border:none;padding:12px 4px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px">
-          <span style="font-size:13px;color:var(--text);line-height:1.4">${item.q}</span>
-          <span id="pfaq-icon-${i}" style="color:var(--gold);font-size:16px;flex-shrink:0;transition:transform 0.2s">+</span>
-        </button>
-        <div id="pfaq-answer-${i}" style="display:none;padding:0 4px 12px;font-size:13px;color:var(--text2);line-height:1.6">${item.a}</div>
-      </div>`).join('');
-  }
-
-  window.toggleProfileFAQ = (i) => {
-    const answer = document.getElementById('pfaq-answer-' + i);
-    const icon = document.getElementById('pfaq-icon-' + i);
-    const isOpen = answer.style.display !== 'none';
-    answer.style.display = isOpen ? 'none' : 'block';
-    icon.textContent = isOpen ? '+' : '−';
-  };
-
-  // ===== MESSAGERIE UTILISATEUR =====
-  let currentMsgType = 'suggestion';
-
-  window.setMsgType = (type) => {
-    currentMsgType = type;
-    ['suggestion', 'bug', 'avis'].forEach(t => {
-      const btn = document.getElementById('msg-type-btn-' + t);
-      if (btn) {
-        btn.style.color = t === type ? 'var(--gold)' : 'var(--text3)';
-        btn.style.borderColor = t === type ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.2)';
-      }
-    });
-  };
-
-  window.sendUserMessage = async () => {
-    const text = document.getElementById('msg-text').value.trim();
-    if (!text) { showToast("Écrivez un message d'abord"); return; }
-    try {
-      await addDoc(collection(db, 'messages'), {
-        uid: currentUser.uid,
-        displayName: currentUser.displayName || currentUser.email,
-        type: currentMsgType,
-        text,
-        createdAt: serverTimestamp(),
-        readByAdmin: false,
-        reply: null,
-        replyRead: false
-      });
-      document.getElementById('msg-text').value = '';
-      showToast('Message envoyé !');
-      await checkUnreadReply();
-    } catch(e) { showToast('Erreur : ' + e.message); }
-  };
-
-  async function checkUnreadReply() {
-    if (!currentUser) return;
-    try {
-      const q = query(collection(db, 'messages'), where('uid', '==', currentUser.uid));
-      const snap = await getDocs(q);
-      // Filtrer côté client : reply non null et pas encore lu
-      const unreadReplies = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(d => d.reply && d.replyRead !== true);
-      const badge = document.getElementById('profile-badge');
-      if (badge) badge.style.display = unreadReplies.length > 0 ? 'block' : 'none';
-      renderProfileReplies(unreadReplies);
-    } catch(e) { console.error('checkUnreadReply:', e); }
-  }
-
-  function renderProfileReplies(docs) {
-    const zone = document.getElementById('profile-reply-zone');
-    if (!zone) return;
-    if (docs.length === 0) { zone.innerHTML = ''; return; }
-    zone.innerHTML = docs.map(d => {
-      const data = d; // déjà un objet plain
-      return `<div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:12px;padding:14px;margin-bottom:12px">
-        <div style="font-size:11px;color:var(--gold);letter-spacing:1px;margin-bottom:6px">Réponse de Frédéric</div>
-        <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:10px">${data.reply}</div>
-        <button onclick="markReplyRead('${d.id}')" style="background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;padding:0">✓ Marquer comme lu</button>
-      </div>`;
-    }).join('');
-  }
-
-  window.markReplyRead = async (msgId) => {
-    try {
-      await updateDoc(doc(db, 'messages', msgId), { replyRead: true });
-      await checkUnreadReply();
-    } catch(e) { console.error('markReplyRead:', e); }
-  };
-
   window.showToast = (msg) => {
     const t = document.getElementById('toast');
     t.textContent = msg;
