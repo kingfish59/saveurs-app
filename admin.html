@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Saveurs — Admin</title>
+  <link rel="apple-touch-icon" href="admin-touch-icon.png">
+  <meta name="apple-mobile-web-app-title" content="Saveurs Admin">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f0d08;
+      --bg2: #1a1710;
+      --surface: #2a2519;
+      --surface2: #332e20;
+      --gold: #c9a84c;
+      --gold2: #e8c97a;
+      --gold-dim: rgba(201,168,76,0.15);
+      --text: #f0e8d5;
+      --text2: #b8a98a;
+      --text3: #7a6e58;
+      --red: #c94c4c;
+      --green: #4cac7a;
+      --radius: 14px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    /* AUTH */
+    #auth-screen {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 100vh; gap: 16px; padding: 40px;
+    }
+    #auth-screen.hidden { display: none; }
+    .auth-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 36px; font-weight: 300;
+      color: var(--gold); letter-spacing: 4px;
+    }
+    .auth-sub { font-size: 12px; color: var(--text3); letter-spacing: 3px; text-transform: uppercase; }
+    .btn-google {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--surface); border: 1px solid rgba(201,168,76,0.3);
+      border-radius: var(--radius); padding: 14px 24px;
+      color: var(--text); font-family: 'DM Sans', sans-serif;
+      font-size: 14px; cursor: pointer; margin-top: 16px;
+    }
+    #access-denied {
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 100vh; gap: 12px;
+      color: var(--red); font-size: 16px;
+    }
+
+    /* APP */
+    #app { display: none; }
+    #app.visible { display: block; }
+
+    .header {
+      background: var(--bg2);
+      border-bottom: 1px solid rgba(201,168,76,0.15);
+      padding: 16px 32px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .header-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 22px; font-weight: 300;
+      color: var(--gold); letter-spacing: 3px;
+    }
+    .header-sub { font-size: 11px; color: var(--text3); letter-spacing: 2px; text-transform: uppercase; }
+    .btn-refresh {
+      background: var(--surface); border: 1px solid rgba(201,168,76,0.3);
+      border-radius: 8px; padding: 8px 16px;
+      color: var(--gold); font-size: 12px; cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .content { padding: 24px 32px; max-width: 1000px; margin: 0 auto; }
+
+    /* STAT CARDS */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px; margin-bottom: 32px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid rgba(201,168,76,0.15);
+      border-radius: var(--radius);
+      padding: 20px; text-align: center;
+    }
+    .stat-number {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 40px; font-weight: 300;
+      color: var(--gold); line-height: 1;
+    }
+    .stat-label {
+      font-size: 11px; color: var(--text3);
+      letter-spacing: 1.5px; text-transform: uppercase;
+      margin-top: 6px;
+    }
+
+    /* SECTION */
+    .section { margin-bottom: 32px; }
+    .section-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 20px; color: var(--gold);
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(201,168,76,0.15);
+    }
+
+    /* TABLE */
+    .table { width: 100%; border-collapse: collapse; }
+    .table th {
+      text-align: left; padding: 8px 12px;
+      font-size: 10px; color: var(--text3);
+      letter-spacing: 2px; text-transform: uppercase;
+      border-bottom: 1px solid rgba(201,168,76,0.15);
+    }
+    .table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(201,168,76,0.06);
+      font-size: 13px; color: var(--text2);
+    }
+    .table tr:last-child td { border-bottom: none; }
+    .table tr:hover td { background: var(--surface); }
+    .badge {
+      display: inline-block; padding: 2px 8px;
+      border-radius: 10px; font-size: 11px;
+      background: var(--gold-dim);
+      color: var(--gold); border: 1px solid rgba(201,168,76,0.3);
+    }
+    .badge-green {
+      background: rgba(76,172,122,0.15);
+      color: var(--green); border-color: rgba(76,172,122,0.3);
+    }
+
+    .loading { color: var(--text3); font-size: 13px; padding: 20px 0; text-align: center; }
+    .empty { color: var(--text3); font-size: 13px; padding: 16px; text-align: center; font-style: italic; }
+  </style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-title">Saveurs</div>
+  <div class="auth-sub">Console d'administration</div>
+  <button class="btn-google" id="btn-signin">
+    <svg width="18" height="18" viewBox="0 0 24 24">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+    </svg>
+    Se connecter avec Google
+  </button>
+</div>
+
+<!-- ACCÈS REFUSÉ -->
+<div id="access-denied">
+  <div style="font-size:32px">🔒</div>
+  <div>Accès réservé à l'administrateur</div>
+  <button onclick="signOutAdmin()" style="margin-top:12px;background:none;border:1px solid rgba(201,76,76,0.4);border-radius:8px;padding:8px 16px;color:var(--red);cursor:pointer;font-family:'DM Sans',sans-serif">Se déconnecter</button>
+</div>
+
+<!-- APP ADMIN -->
+<div id="app">
+  <div class="header">
+    <div>
+      <div class="header-title">Saveurs — Admin</div>
+      <div class="header-sub" id="admin-user"></div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <div id="last-refresh" style="font-size:11px;color:var(--text3)"></div>
+      <button class="btn-refresh" onclick="loadDashboard()">↻ Actualiser</button>
+      <button onclick="signOutAdmin()" style="background:none;border:1px solid rgba(201,76,76,0.3);border-radius:8px;padding:8px 14px;color:var(--red);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">Déconnexion</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Cartes stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-number" id="stat-users">—</div>
+        <div class="stat-label">Utilisateurs</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="stat-groups">—</div>
+        <div class="stat-label">Groupes</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="stat-recipes">—</div>
+        <div class="stat-label">Recettes</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="stat-history">—</div>
+        <div class="stat-label">Cuisines enregistrées</div>
+      </div>
+    </div>
+
+    <!-- Utilisateurs -->
+    <div class="section">
+      <div class="section-title">Utilisateurs</div>
+      <div id="users-table"><div class="loading">Chargement...</div></div>
+    </div>
+
+    <!-- Groupes -->
+    <div class="section">
+      <div class="section-title">Groupes famille</div>
+      <div id="groups-table"><div class="loading">Chargement...</div></div>
+    </div>
+
+    <!-- Recettes par groupe -->
+    <div class="section">
+      <div class="section-title">Recettes par groupe</div>
+      <div id="recipes-by-group"><div class="empty">Cliquez sur un groupe ci-dessus pour voir ses recettes</div></div>
+    </div>
+
+    <!-- Activité récente -->
+    <div class="section">
+      <div class="section-title">Activité récente (30 dernières cuisines)</div>
+      <div id="activity-table"><div class="loading">Chargement...</div></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, collection, doc, getDocs, getDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const ADMIN_UID = 'nsNHWQAxNxS3hXpXUboTHuw6kYU2';
+
+  const app = initializeApp({
+    apiKey: "AIzaSyAMSYsWcUaGXZFjLD_16v7c5q5EIJHycVU",
+    authDomain: "recettes-app-59830.firebaseapp.com",
+    projectId: "recettes-app-59830",
+    storageBucket: "recettes-app-59830.appspot.com",
+    messagingSenderId: "1234567890",
+    appId: "1:1234567890:web:abc123"
+  });
+
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // Auth
+  document.getElementById('btn-signin').onclick = async () => {
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+    } catch(e) { console.error(e); }
+  };
+
+  window.signOutAdmin = () => signOut(auth);
+
+  onAuthStateChanged(auth, async (user) => {
+    document.getElementById('auth-screen').classList.add('hidden');
+    if (!user) {
+      document.getElementById('auth-screen').classList.remove('hidden');
+      document.getElementById('app').classList.remove('visible');
+      document.getElementById('access-denied').style.display = 'none';
+      return;
+    }
+    if (user.uid !== ADMIN_UID) {
+      document.getElementById('access-denied').style.display = 'flex';
+      return;
+    }
+    document.getElementById('app').classList.add('visible');
+    document.getElementById('admin-user').textContent = user.displayName || user.email;
+    loadDashboard();
+  });
+
+  window.loadDashboard = async () => {
+    document.getElementById('last-refresh').textContent = 'Actualisation...';
+    try {
+      await Promise.all([loadUsers(), loadGroups(), loadActivity()]);
+      document.getElementById('last-refresh').textContent = 'Actualisé à ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    } catch(e) {
+      document.getElementById('last-refresh').textContent = 'Erreur : ' + e.message;
+    }
+  };
+
+  async function loadUsers() {
+    const snap = await getDocs(collection(db, 'users'));
+    document.getElementById('stat-users').textContent = snap.docs.length;
+
+    const rows = snap.docs.map(d => {
+      const u = d.data();
+      return { uid: d.id, name: u.displayName || '—', email: u.email || '—', groupId: u.groupId || '—' };
+    }).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+
+    if (rows.length === 0) {
+      document.getElementById('users-table').innerHTML = '<div class="empty">Aucun utilisateur</div>';
+      return;
+    }
+
+    document.getElementById('users-table').innerHTML = `
+      <table class="table">
+        <thead><tr>
+          <th>Nom</th><th>Email</th><th>Groupe</th><th>UID</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(u => `<tr>
+            <td><strong>${u.name}</strong></td>
+            <td>${u.email}</td>
+            <td><span class="badge">${u.groupId === u.uid ? 'Personnel' : u.groupId.substring(0, 8) + '...'}</span></td>
+            <td style="font-size:11px;color:var(--text3)">${u.uid.substring(0, 12)}...</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  async function loadGroups() {
+    const snap = await getDocs(collection(db, 'groups'));
+    let totalRecipes = 0;
+    let totalHistory = 0;
+    const groups = [];
+
+    for (const d of snap.docs) {
+      const g = d.data();
+      const recipesSnap = await getDocs(collection(db, 'groups', d.id, 'recipes'));
+      const historySnap = await getDocs(collection(db, 'groups', d.id, 'history'));
+      totalRecipes += recipesSnap.docs.length;
+      totalHistory += historySnap.docs.length;
+      groups.push({
+        id: d.id,
+        code: g.code || '—',
+        members: (g.members || []).length,
+        recipes: recipesSnap.docs.length,
+        history: historySnap.docs.length,
+        createdAt: g.createdAt?.toDate?.()?.toLocaleDateString('fr-FR') || '—'
+      });
+    }
+
+    document.getElementById('stat-groups').textContent = snap.docs.length;
+    document.getElementById('stat-recipes').textContent = totalRecipes;
+    document.getElementById('stat-history').textContent = totalHistory;
+
+    if (groups.length === 0) {
+      document.getElementById('groups-table').innerHTML = '<div class="empty">Aucun groupe</div>';
+      return;
+    }
+
+    document.getElementById('groups-table').innerHTML = `
+      <table class="table">
+        <thead><tr>
+          <th>Code</th><th>Membres</th><th>Recettes</th><th>Cuisines</th><th>Créé le</th><th>ID</th>
+        </tr></thead>
+        <tbody>
+          ${groups.map(g => `<tr style="cursor:pointer" onclick="loadGroupRecipes('${g.id}','${g.code}')" title="Voir les recettes">
+            <td><span class="badge">${g.code}</span></td>
+            <td>${g.members}</td>
+            <td><span class="badge-green badge" style="cursor:pointer">${g.recipes} 📖</span></td>
+            <td>${g.history}</td>
+            <td style="color:var(--text3)">${g.createdAt}</td>
+            <td style="font-size:11px;color:var(--text3)">${g.id.substring(0, 12)}...</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  window.loadGroupRecipes = async (groupId, code) => {
+    const el = document.getElementById('recipes-by-group');
+    el.innerHTML = '<div class="loading">Chargement des recettes du groupe ' + code + '...</div>';
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    try {
+      const snap = await getDocs(collection(db, 'groups', groupId, 'recipes'));
+      if (snap.docs.length === 0) {
+        el.innerHTML = '<div class="empty">Aucune recette dans ce groupe (' + code + ')</div>';
+        return;
+      }
+      const recipes = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+
+      const typeIcons = { viande: '🥩', poisson: '🐟', 'vegé': '🥦' };
+      const costSymbols = { 1: '€', 2: '€€', 3: '€€€' };
+
+      el.innerHTML = `
+        <div style="font-size:12px;color:var(--text3);margin-bottom:10px">
+          Groupe <span style="color:var(--gold)">${code}</span> — ${recipes.length} recette${recipes.length > 1 ? 's' : ''}
+        </div>
+        <table class="table">
+          <thead><tr>
+            <th>Nom</th><th>Catégorie</th><th>Régime</th><th>Temps</th><th>Coût</th><th>Personnes</th>
+          </tr></thead>
+          <tbody>
+            ${recipes.map(r => `<tr>
+              <td><strong style="color:var(--text)">${(r.name || '—').toUpperCase()}</strong></td>
+              <td>${r.category || '—'}</td>
+              <td>${typeIcons[r.type] || '—'}</td>
+              <td>${r.prepTime ? r.prepTime + ' min' : '—'}</td>
+              <td style="color:var(--gold)">${costSymbols[r.cost] || '—'}</td>
+              <td>${r.servings || '—'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    } catch(e) {
+      el.innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>';
+    }
+  };
+
+  async function loadActivity() {
+    // Collecter l'historique de tous les groupes
+    const groupsSnap = await getDocs(collection(db, 'groups'));
+    const allHistory = [];
+
+    for (const gDoc of groupsSnap.docs) {
+      const hSnap = await getDocs(collection(db, 'groups', gDoc.id, 'history'));
+      hSnap.docs.forEach(h => {
+        const data = h.data();
+        allHistory.push({
+          date: data.date || '',
+          cookedByName: data.cookedByName || '—',
+          convives: data.convives || '—',
+          recipeId: data.recipeId,
+          groupId: gDoc.id
+        });
+      });
+    }
+
+    allHistory.sort((a, b) => b.date.localeCompare(a.date));
+    const recent = allHistory.slice(0, 30);
+
+    if (recent.length === 0) {
+      document.getElementById('activity-table').innerHTML = '<div class="empty">Aucune activité</div>';
+      return;
+    }
+
+    document.getElementById('activity-table').innerHTML = `
+      <table class="table">
+        <thead><tr>
+          <th>Date</th><th>Cuisiné par</th><th>Convives</th>
+        </tr></thead>
+        <tbody>
+          ${recent.map(h => `<tr>
+            <td>${h.date}</td>
+            <td>${h.cookedByName}</td>
+            <td>${h.convives}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+</script>
+</body>
+</html>
