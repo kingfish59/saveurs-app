@@ -144,6 +144,51 @@
 
     .loading { color: var(--text3); font-size: 13px; padding: 20px 0; text-align: center; }
     .empty { color: var(--text3); font-size: 13px; padding: 16px; text-align: center; font-style: italic; }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      .header { padding: 12px 16px; flex-wrap: wrap; gap: 10px; }
+      .header-title { font-size: 18px; }
+      .content { padding: 16px; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .stat-number { font-size: 30px; }
+      .table { font-size: 12px; }
+      .table th, .table td { padding: 8px 8px; }
+      /* Cacher colonnes secondaires sur mobile */
+      .table .hide-mobile { display: none; }
+      .modal-box { padding: 20px; }
+      .btn-refresh { padding: 6px 12px; font-size: 11px; }
+      #last-refresh { display: none; }
+    }
+    @media (max-width: 480px) {
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .stat-number { font-size: 26px; }
+    }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 100;
+      display: none;
+      align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: var(--bg2);
+      border: 1px solid rgba(201,168,76,0.2);
+      border-radius: var(--radius);
+      padding: 28px;
+      width: 100%; max-width: 640px;
+      max-height: 80vh; overflow-y: auto;
+    }
+    .modal-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; color: var(--gold); margin-bottom: 20px; }
+    .btn-danger { background: transparent; border: 1px solid rgba(201,76,76,0.4); border-radius: 8px; padding: 8px 14px; color: var(--red); font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+    .btn-gold { background: var(--gold); border: none; border-radius: 8px; padding: 8px 16px; color: var(--bg); font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-weight: 500; }
+    .btn-secondary { background: transparent; border: 1px solid rgba(201,168,76,0.3); border-radius: 8px; padding: 8px 14px; color: var(--gold); font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+    .tag-blocked { background: rgba(201,76,76,0.15); color: var(--red); border: 1px solid rgba(201,76,76,0.3); border-radius: 10px; padding: 2px 8px; font-size: 11px; }
+    .ingredient-list { font-size: 12px; color: var(--text3); line-height: 1.8; white-space: pre-wrap; }
   </style>
 </head>
 <body>
@@ -177,7 +222,7 @@
       <div class="header-title">Saveurs — Admin</div>
       <div class="header-sub" id="admin-user"></div>
     </div>
-    <div style="display:flex;gap:10px;align-items:center">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
       <div id="last-refresh" style="font-size:11px;color:var(--text3)"></div>
       <button class="btn-refresh" onclick="loadDashboard()">↻ Actualiser</button>
       <button onclick="signOutAdmin()" style="background:none;border:1px solid rgba(201,76,76,0.3);border-radius:8px;padding:8px 14px;color:var(--red);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">Déconnexion</button>
@@ -231,10 +276,41 @@
   </div>
 </div>
 
+<!-- MODAL GROUPE -->
+<div class="modal-overlay" id="modal-group">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-group-title">Groupe</div>
+    <div id="modal-group-content"></div>
+    <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+      <button class="btn-danger" id="btn-delete-group" onclick="deleteGroup()">🗑 Supprimer ce groupe</button>
+      <button class="btn-secondary" onclick="closeModal('modal-group')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RECETTE -->
+<div class="modal-overlay" id="modal-recipe">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-recipe-title"></div>
+    <div id="modal-recipe-content"></div>
+    <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+      <button class="btn-gold" id="btn-import-recipe" onclick="importRecipeToMyProfile()">⬇ Importer dans mon profil</button>
+      <button class="btn-secondary" onclick="closeModal('modal-recipe')">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, collection, doc, getDocs, getDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, collection, doc, getDocs, getDoc, addDoc, deleteDoc, updateDoc, setDoc, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  let currentGroupId = null;
+  let currentRecipeData = null;
+  let blockedUsers = new Set();
+
+  window.closeModal = (id) => document.getElementById(id).classList.remove('open');
+  function openModal(id) { document.getElementById(id).classList.add('open'); }
 
   const ADMIN_UID = 'nsNHWQAxNxS3hXpXUboTHuw6kYU2';
 
@@ -292,7 +368,7 @@
 
     const rows = snap.docs.map(d => {
       const u = d.data();
-      return { uid: d.id, name: u.displayName || '—', email: u.email || '—', groupId: u.groupId || '—' };
+      return { uid: d.id, name: u.displayName || '—', email: u.email || '—', groupId: u.groupId || '—', blocked: u.blocked || false };
     }).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
 
     if (rows.length === 0) {
@@ -303,14 +379,15 @@
     document.getElementById('users-table').innerHTML = `
       <table class="table">
         <thead><tr>
-          <th>Nom</th><th>Email</th><th>Groupe</th><th>UID</th>
+          <th>Nom</th><th>Email</th><th>Groupe</th><th>UID</th><th>Action</th>
         </tr></thead>
         <tbody>
           ${rows.map(u => `<tr>
-            <td><strong>${u.name}</strong></td>
+            <td><strong>${u.name}</strong> ${u.blocked ? '<span class="tag-blocked">Bloqué</span>' : ''}</td>
             <td>${u.email}</td>
             <td><span class="badge">${u.groupId === u.uid ? 'Personnel' : u.groupId.substring(0, 8) + '...'}</span></td>
             <td style="font-size:11px;color:var(--text3)">${u.uid.substring(0, 12)}...</td>
+            <td><button onclick="toggleBlock('${u.uid}','${u.name}',${u.blocked})" class="${u.blocked ? 'btn-gold' : 'btn-danger'}" style="padding:4px 10px;font-size:11px">${u.blocked ? '✓ Débloquer' : '🚫 Bloquer'}</button></td>
           </tr>`).join('')}
         </tbody>
       </table>`;
@@ -350,10 +427,10 @@
     document.getElementById('groups-table').innerHTML = `
       <table class="table">
         <thead><tr>
-          <th>Code</th><th>Membres</th><th>Recettes</th><th>Cuisines</th><th>Créé le</th><th>ID</th>
+          <th>Code</th><th>Membres</th><th>Recettes</th><th class="hide-mobile">Cuisines</th><th class="hide-mobile">Créé le</th><th class="hide-mobile">ID</th>
         </tr></thead>
         <tbody>
-          ${groups.map(g => `<tr style="cursor:pointer" onclick="loadGroupRecipes('${g.id}','${g.code}')" title="Voir les recettes">
+          ${groups.map(g => `<tr style="cursor:pointer" onclick="openGroupModal('${g.id}','${g.code}')" title="Voir les membres et recettes">
             <td><span class="badge">${g.code}</span></td>
             <td>${g.members}</td>
             <td><span class="badge-green badge" style="cursor:pointer">${g.recipes} 📖</span></td>
@@ -446,6 +523,142 @@
         </tbody>
       </table>`;
   }
+
+  // ===== BLOQUER/DÉBLOQUER =====
+  window.toggleBlock = async (uid, name, isBlocked) => {
+    const action = isBlocked ? 'débloquer' : 'bloquer';
+    if (!confirm('Voulez-vous ' + action + ' ' + name + ' ?')) return;
+    try {
+      await setDoc(doc(db, 'users', uid), { blocked: !isBlocked }, { merge: true });
+      showToast(name + (isBlocked ? ' débloqué' : ' bloqué'));
+      await loadDashboard();
+    } catch(e) { showToast('Erreur : ' + e.message); }
+  };
+
+  // ===== MODAL GROUPE =====
+  window.openGroupModal = async (groupId, code) => {
+    currentGroupId = groupId;
+    document.getElementById('modal-group-title').textContent = 'Groupe ' + code;
+    document.getElementById('modal-group-content').innerHTML = '<div class="loading">Chargement...</div>';
+    openModal('modal-group');
+
+    try {
+      const groupDoc = await getDoc(doc(db, 'groups', groupId));
+      const data = groupDoc.data();
+      const members = data.members || [];
+
+      // Charger les noms des membres
+      const memberDetails = await Promise.all(members.map(async uid => {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', uid));
+          const u = userDoc.data() || {};
+          return { uid, name: u.displayName || u.email || uid, email: u.email || '—', blocked: u.blocked || false };
+        } catch { return { uid, name: uid, email: '—', blocked: false }; }
+      }));
+
+      // Charger les recettes
+      const recipesSnap = await getDocs(collection(db, 'groups', groupId, 'recipes'));
+      const recipes = recipesSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (a.name||'').localeCompare(b.name||'','fr'));
+      const typeIcons = { viande: '🥩', poisson: '🐟', 'vegé': '🥦' };
+
+      document.getElementById('modal-group-content').innerHTML = `
+        <div style="margin-bottom:20px">
+          <div style="font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">Membres (${memberDetails.length})</div>
+          ${memberDetails.map(m => `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(201,168,76,0.06)">
+              <div>
+                <span style="color:var(--text);font-size:13px">${m.name}</span>
+                ${m.blocked ? '<span class="tag-blocked" style="margin-left:8px">Bloqué</span>' : ''}
+                <div style="font-size:11px;color:var(--text3)">${m.email}</div>
+              </div>
+              <button onclick="toggleBlock('${m.uid}','${m.name}',${m.blocked})" class="${m.blocked ? 'btn-gold' : 'btn-danger'}" style="padding:4px 10px;font-size:11px">${m.blocked ? '✓ Débloquer' : '🚫 Bloquer'}</button>
+            </div>`).join('')}
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">Recettes (${recipes.length})</div>
+          ${recipes.map(r => `
+            <div onclick="openRecipeModal(${JSON.stringify(JSON.stringify(r))},'${groupId}')" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(201,168,76,0.06);cursor:pointer">
+              <div>
+                <div style="font-size:13px;color:var(--text);font-weight:500">${(r.name||'—').toUpperCase()}</div>
+                <div style="font-size:11px;color:var(--text3)">${[r.category, typeIcons[r.type], r.prepTime ? r.prepTime+' min' : ''].filter(Boolean).join(' · ')}</div>
+              </div>
+              <span style="color:var(--gold)">›</span>
+            </div>`).join('')}
+        </div>`;
+    } catch(e) {
+      document.getElementById('modal-group-content').innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>';
+    }
+  };
+
+  // ===== SUPPRIMER GROUPE =====
+  window.deleteGroup = async () => {
+    if (!currentGroupId) return;
+    if (!confirm('Supprimer définitivement ce groupe ? Les recettes seront perdues.')) return;
+    if (!confirm('Êtes-vous vraiment sûr ? Cette action est irréversible.')) return;
+    try {
+      // Supprimer sous-collections recettes, history, guests
+      for (const sub of ['recipes', 'history', 'guests', 'weekplans']) {
+        const snap = await getDocs(collection(db, 'groups', currentGroupId, sub));
+        await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+      }
+      await deleteDoc(doc(db, 'groups', currentGroupId));
+      closeModal('modal-group');
+      showToast('Groupe supprimé');
+      await loadDashboard();
+    } catch(e) { showToast('Erreur : ' + e.message); }
+  };
+
+  // ===== MODAL RECETTE =====
+  window.openRecipeModal = (recipeJson, groupId) => {
+    const r = JSON.parse(recipeJson);
+    currentRecipeData = { ...r, sourceGroupId: groupId };
+    document.getElementById('modal-recipe-title').textContent = (r.name || '—').toUpperCase();
+    const typeLabels = { viande: '🥩 Viande', poisson: '🐟 Poisson', 'vegé': '🥦 Végétarien' };
+    const costSymbols = { 1: '€', 2: '€€', 3: '€€€' };
+    document.getElementById('modal-recipe-content').innerHTML = `
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+        ${r.category ? '<span class="badge">' + r.category + '</span>' : ''}
+        ${r.type && typeLabels[r.type] ? '<span class="badge">' + typeLabels[r.type] + '</span>' : ''}
+        ${r.prepTime ? '<span class="badge">⏱ ' + r.prepTime + ' min</span>' : ''}
+        ${r.servings ? '<span class="badge">👥 ' + r.servings + ' pers.</span>' : ''}
+        ${r.cost ? '<span class="badge" style="color:var(--gold)">' + costSymbols[r.cost] + '</span>' : ''}
+      </div>
+      ${r.ingredients ? '<div style="font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Ingrédients</div><div class="ingredient-list">' + r.ingredients + '</div>' : ''}
+      ${r.instructions ? '<div style="font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin:14px 0 6px">Instructions</div><div class="ingredient-list">' + r.instructions + '</div>' : ''}`;
+    openModal('modal-recipe');
+  };
+
+  // ===== IMPORTER RECETTE =====
+  window.importRecipeToMyProfile = async () => {
+    if (!currentRecipeData) return;
+    try {
+      const myGroupId = ADMIN_UID; // mon groupe personnel
+      const { sourceGroupId, id, ...recipeData } = currentRecipeData;
+      await addDoc(collection(db, 'groups', myGroupId, 'recipes'), {
+        ...recipeData,
+        importedFrom: sourceGroupId,
+        importedAt: serverTimestamp()
+      });
+      showToast('Recette importée dans votre profil !');
+      closeModal('modal-recipe');
+    } catch(e) { showToast('Erreur : ' + e.message); }
+  };
+
+  // ===== TOAST =====
+  function showToast(msg) {
+    let t = document.getElementById('admin-toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'admin-toast';
+      t.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--surface2);color:var(--text);padding:10px 20px;border-radius:20px;font-size:13px;z-index:999;border:1px solid rgba(201,168,76,0.3);transition:opacity 0.3s';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.style.opacity = '0', 2500);
+  }
+
 </script>
 </body>
 </html>
