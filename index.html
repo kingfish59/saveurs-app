@@ -10,6 +10,7 @@
   <meta name="theme-color" content="#1a1209">
   <title>Saveurs</title>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
@@ -1195,7 +1196,7 @@
         <button onclick="inspireMe()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">✨ Inspire-moi</button>
         <button onclick="openShoppingList()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🛒 Liste de courses</button>
         <button onclick="resetWeek()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🗑 Effacer</button>
-        <button onclick="printWeekPlan()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🖨️ Imprimer</button>
+        <button onclick="generateWeekPDF()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">📄 PDF</button>
       </div>
 
       <!-- Grille semaine -->
@@ -1495,6 +1496,23 @@
     <button class="detail-delete-btn" onclick="confirmDelete()" title="Supprimer">🗑</button>
   </div>
   <div class="detail-content" id="detail-content"></div>
+</div>
+
+<!-- MODAL PDF PREVIEW -->
+<div class="modal-overlay" id="modal-pdf-preview">
+  <div class="modal" style="max-height:95vh">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Planning de la semaine</div>
+    <input type="hidden" id="pdf-blob-url">
+    <iframe id="pdf-preview-frame" style="width:100%;height:300px;border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);margin-bottom:16px" src=""></iframe>
+    <button class="btn-primary" onclick="sharePDF()">
+      <span style="display:flex;align-items:center;justify-content:center;gap:8px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><path d="M12 3v12"/><path d="M9 6l3-3 3 3"/></svg>
+        Partager / Enregistrer
+      </span>
+    </button>
+    <button class="btn-secondary" style="margin-top:8px" onclick="closeModal('modal-pdf-preview')">Fermer</button>
+  </div>
 </div>
 
 <!-- MODAL CHOIX REPAS -->
@@ -3154,6 +3172,122 @@ const QUOTES = [
     }).join('');
   }
 
+  window.generateWeekPDF = () => {
+    const { jsPDF } = window.jspdf;
+    const wkey = getWeekKey(currentWeekOffset);
+    const plan = weekPlan[wkey] || {};
+    const weekStart = getWeekStart(currentWeekOffset);
+    const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageW = 297; const pageH = 210;
+    const margin = 10;
+    const colW = (pageW - margin * 2) / 7;
+
+    // Fond sombre
+    doc.setFillColor(15, 13, 8);
+    doc.rect(0, 0, pageW, pageH, 'F');
+
+    // Titre
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(20);
+    doc.setTextColor(201, 168, 76);
+    doc.text('SAVEURS', pageW / 2, 14, { align: 'center' });
+
+    doc.setFontSize(8);
+    doc.setTextColor(120, 110, 88);
+    doc.text('Semaine du ' + formatDayDate(weekStart) + ' au ' + formatDayDate(weekEnd), pageW / 2, 20, { align: 'center' });
+
+    // Ligne dorée
+    doc.setDrawColor(201, 168, 76);
+    doc.setLineWidth(0.3);
+    doc.line(margin, 23, pageW - margin, 23);
+
+    const gridTop = 26;
+    const gridH = pageH - gridTop - margin;
+
+    DAYS.forEach((dayName, i) => {
+      const date = new Date(weekStart); date.setDate(weekStart.getDate() + i);
+      const dayKey = dayName.toLowerCase();
+      const x = margin + i * colW;
+
+      // Fond colonne header
+      doc.setFillColor(42, 37, 25);
+      doc.rect(x, gridTop, colW - 1, 10, 'F');
+
+      // Nom du jour
+      doc.setFontSize(9);
+      doc.setTextColor(201, 168, 76);
+      doc.setFont('helvetica', 'bold');
+      doc.text(dayName.toUpperCase(), x + colW/2 - 0.5, gridTop + 5, { align: 'center' });
+
+      // Date
+      doc.setFontSize(7);
+      doc.setTextColor(120, 110, 88);
+      doc.setFont('helvetica', 'normal');
+      doc.text(formatDayDate(date), x + colW/2 - 0.5, gridTop + 8.5, { align: 'center' });
+
+      // Slots
+      const slotH = (gridH - 10) / 3;
+      MEALS.forEach((meal, j) => {
+        const slotKey = dayKey + '-' + meal.key;
+        const slot = plan[slotKey];
+        if (meal.optional && !slot) return;
+
+        const sy = gridTop + 10 + j * slotH;
+
+        // Fond slot
+        doc.setFillColor(26, 23, 16);
+        doc.rect(x, sy, colW - 1, slotH - 0.5, 'F');
+
+        // Label
+        doc.setFontSize(6);
+        doc.setTextColor(90, 80, 58);
+        doc.setFont('helvetica', 'normal');
+        doc.text(meal.label.toUpperCase(), x + 2, sy + 4);
+
+        // Nom du repas
+        if (slot) {
+          const name = (slot.name || '').toUpperCase();
+          doc.setFontSize(7.5);
+          doc.setFont('helvetica', 'bold');
+          if (slot.type === 'leftovers') {
+            doc.setTextColor(76, 172, 122); // vert
+          } else {
+            doc.setTextColor(240, 232, 213);
+          }
+          // Couper le texte si trop long
+          const lines = doc.splitTextToSize(name, colW - 5);
+          doc.text(lines.slice(0, 2), x + 2, sy + 9);
+        } else {
+          doc.setFontSize(7);
+          doc.setTextColor(60, 55, 40);
+          doc.setFont('helvetica', 'italic');
+          doc.text('—', x + 2, sy + 9);
+        }
+
+        // Ligne séparatrice
+        doc.setDrawColor(42, 37, 25);
+        doc.setLineWidth(0.2);
+        doc.line(x, sy + slotH - 0.5, x + colW - 1, sy + slotH - 0.5);
+      });
+
+      // Bordure colonne
+      doc.setDrawColor(60, 50, 30);
+      doc.setLineWidth(0.3);
+      doc.rect(x, gridTop, colW - 1, gridH, 'S');
+    });
+
+    // Générer blob et ouvrir dans modal
+    const pdfBlob = doc.output('blob');
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+
+    // Afficher dans modal avec options imprimer/partager
+    document.getElementById('pdf-preview-frame').src = pdfUrl;
+    document.getElementById('pdf-blob-url').value = pdfUrl;
+    openModal('modal-pdf-preview');
+  };
+
   window.printWeekPlan = () => {
     const wkey = getWeekKey(currentWeekOffset);
     const plan = weekPlan[wkey] || {};
@@ -3469,6 +3603,27 @@ const QUOTES = [
 
     document.getElementById('shopping-list-content').textContent = text;
     openModal('modal-shopping');
+  };
+
+  window.sharePDF = async () => {
+    const url = document.getElementById('pdf-blob-url').value;
+    if (!url) return;
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const file = new File([blob], 'planning-saveurs.pdf', { type: 'application/pdf' });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Planning Saveurs' });
+      } else {
+        // Fallback : téléchargement direct
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'planning-saveurs.pdf';
+        a.click();
+      }
+    } catch(e) {
+      if (e.name !== 'AbortError') showToast('Erreur : ' + e.message);
+    }
   };
 
   window.shareShoppingList = async () => {
