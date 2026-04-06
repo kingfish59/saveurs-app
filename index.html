@@ -3178,97 +3178,124 @@ const QUOTES = [
     const plan = weekPlan[wkey] || {};
     const weekStart = getWeekStart(currentWeekOffset);
     const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+    const weekNum = wkey.split('-W')[1];
 
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pageW = 210; const pageH = 297;
-    const margin = 14;
+    const pageW = 210;
+    const margin = 15;
     const contentW = pageW - margin * 2;
 
     // Fond blanc
     doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, pageW, pageH, 'F');
+    doc.rect(0, 0, pageW, 297, 'F');
 
     // Titre
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
+    doc.setFontSize(20);
     doc.setTextColor(170, 125, 45);
-    doc.text('SAVEURS', pageW / 2, 18, { align: 'center' });
+    doc.text('SAVEURS', pageW / 2, 16, { align: 'center' });
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(150, 140, 120);
-    doc.text('Semaine du ' + formatDayDate(weekStart) + ' au ' + formatDayDate(weekEnd), pageW / 2, 25, { align: 'center' });
+    doc.setTextColor(140, 130, 110);
+    doc.text('Planning — Semaine ' + weekNum + ' · du ' + formatDayDate(weekStart) + ' au ' + formatDayDate(weekEnd), pageW / 2, 23, { align: 'center' });
 
-    // Ligne dorée
     doc.setDrawColor(201, 168, 76);
     doc.setLineWidth(0.5);
-    doc.line(margin, 29, pageW - margin, 29);
+    doc.line(margin, 27, pageW - margin, 27);
 
-    let y = 36;
-    const lineH = 7;
+    let y = 34;
 
     DAYS.forEach((dayName, i) => {
       const date = new Date(weekStart); date.setDate(weekStart.getDate() + i);
       const dayKey = dayName.toLowerCase();
+      const hasDessert = !!plan[dayKey + '-dessert'];
+      const rowH = hasDessert ? 24 : 18;
 
-      // Fond header jour
-      doc.setFillColor(250, 245, 235);
-      doc.rect(margin, y - 4.5, contentW, 8, 'F');
+      // Fond jour
+      doc.setFillColor(250, 246, 238);
+      doc.rect(margin, y, contentW, 7, 'F');
 
-      // Nom du jour + date
-      doc.setFontSize(13);
+      // Nom du jour
+      doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(150, 110, 40);
-      doc.text(dayName, margin + 2, y);
+      doc.text(dayName.toUpperCase(), margin + 3, y + 5);
 
+      // Date alignée à droite
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(170, 160, 140);
+      doc.text(formatDayDate(date), pageW - margin - 3, y + 5, { align: 'right' });
+
+      y += 8;
+
+      // Midi
+      const midi = plan[dayKey + '-midi'];
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(160, 150, 130);
-      doc.text(formatDayDate(date), pageW - margin - 2, y, { align: 'right' });
+      doc.text('Midi', margin + 3, y + 4.5);
 
-      y += 5;
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      if (midi) {
+        doc.setTextColor(midi.type === 'leftovers' ? [60, 140, 100] : [25, 20, 10]);
+        const name = midi.type === 'leftovers' ? midi.name : (midi.name || '').toUpperCase();
+        doc.text(doc.splitTextToSize(name, contentW - 22)[0], margin + 22, y + 5);
+      } else {
+        doc.setTextColor(200, 195, 185);
+        doc.text('—', margin + 22, y + 5);
+      }
+      y += 8;
 
-      // Slots repas
-      const activeMeals = MEALS.filter(m => !m.optional || plan[dayKey + '-' + m.key]);
-      activeMeals.forEach(meal => {
-        const slotKey = dayKey + '-' + meal.key;
-        const slot = plan[slotKey];
+      // Soir
+      const soir = plan[dayKey + '-soir'];
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(160, 150, 130);
+      doc.text('Soir', margin + 3, y + 4.5);
 
-        // Label
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      if (soir) {
+        doc.setTextColor(soir.type === 'leftovers' ? [60, 140, 100] : [25, 20, 10]);
+        const name = soir.type === 'leftovers' ? soir.name : (soir.name || '').toUpperCase();
+        doc.text(doc.splitTextToSize(name, contentW - 22)[0], margin + 22, y + 5);
+      } else {
+        doc.setTextColor(200, 195, 185);
+        doc.text('—', margin + 22, y + 5);
+      }
+      y += 8;
+
+      // Dessert si présent
+      if (hasDessert) {
+        const dessert = plan[dayKey + '-dessert'];
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(180, 170, 150);
-        doc.text(meal.label, margin + 3, y);
+        doc.setTextColor(160, 150, 130);
+        doc.text('Dessert', margin + 3, y + 4.5);
 
-        // Nom recette
-        if (slot && slot.name) {
-          doc.setFontSize(13);
-          doc.setFont('helvetica', 'bold');
-          if (slot.type === 'leftovers') {
-            doc.setTextColor(60, 140, 100);
-          } else {
-            doc.setTextColor(30, 25, 15);
-          }
-          const name = slot.type === 'leftovers' ? slot.name : (slot.name || '').toUpperCase();
-          doc.text(name, margin + 22, y);
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        if (dessert) {
+          doc.setTextColor(dessert.type === 'leftovers' ? [60, 140, 100] : [25, 20, 10]);
+          const name = dessert.type === 'leftovers' ? dessert.name : (dessert.name || '').toUpperCase();
+          doc.text(doc.splitTextToSize(name, contentW - 22)[0], margin + 22, y + 5);
         } else {
-          doc.setFontSize(11);
-          doc.setFont('helvetica', 'italic');
           doc.setTextColor(200, 195, 185);
-          doc.text('—', margin + 22, y);
+          doc.text('—', margin + 22, y + 5);
         }
+        y += 8;
+      }
 
-        y += lineH;
-      });
-
-      // Ligne séparatrice légère entre les jours
-      doc.setDrawColor(220, 210, 190);
+      // Ligne séparatrice
+      doc.setDrawColor(220, 210, 195);
       doc.setLineWidth(0.2);
-      doc.line(margin, y - 1, pageW - margin, y - 1);
-      y += 3;
+      doc.line(margin, y, pageW - margin, y);
+      y += 4;
     });
 
-    // Générer blob et ouvrir modal
     const pdfBlob = doc.output('blob');
     const pdfUrl = URL.createObjectURL(pdfBlob);
     document.getElementById('pdf-preview-frame').src = pdfUrl;
@@ -3599,14 +3626,16 @@ const QUOTES = [
     try {
       const response = await fetch(url);
       const blob = await response.blob();
-      const file = new File([blob], 'planning-saveurs.pdf', { type: 'application/pdf' });
+      const wkNum2 = document.getElementById('week-sub').textContent.replace('Semaine ','').replace('Semaine en cours','cette-semaine').replace('Semaine prochaine','semaine-prochaine').replace('Semaine dernière','semaine-derniere').trim();
+      const file = new File([blob], 'planning-saveurs-' + wkNum2 + '.pdf', { type: 'application/pdf' });
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], title: 'Planning Saveurs' });
       } else {
         // Fallback : téléchargement direct
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'planning-saveurs.pdf';
+        const wkNum = document.getElementById('week-sub').textContent.replace('Semaine ','').replace('Semaine en cours','cette-semaine').replace('Semaine prochaine','semaine-prochaine').replace('Semaine dernière','semaine-derniere').trim();
+        a.download = 'planning-saveurs-' + wkNum + '.pdf';
         a.click();
       }
     } catch(e) {
