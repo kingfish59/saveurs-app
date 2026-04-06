@@ -3362,7 +3362,7 @@ const QUOTES = [
       doc.setFontSize(13);
       doc.setFont('helvetica', 'bold');
       if (midi) {
-        doc.setTextColor(midi.type === 'leftovers' ? [60, 140, 100] : [25, 20, 10]);
+        if (midi.type === 'leftovers') { doc.setTextColor(60, 140, 100); } else { doc.setTextColor(25, 20, 10); }
         const name = midi.type === 'leftovers' ? midi.name : (midi.name || '').toUpperCase();
         doc.text(doc.splitTextToSize(name, contentW - 22)[0], margin + 22, y + 5);
       } else {
@@ -3381,7 +3381,7 @@ const QUOTES = [
       doc.setFontSize(13);
       doc.setFont('helvetica', 'bold');
       if (soir) {
-        doc.setTextColor(soir.type === 'leftovers' ? [60, 140, 100] : [25, 20, 10]);
+        if (soir.type === 'leftovers') { doc.setTextColor(60, 140, 100); } else { doc.setTextColor(25, 20, 10); }
         const name = soir.type === 'leftovers' ? soir.name : (soir.name || '').toUpperCase();
         doc.text(doc.splitTextToSize(name, contentW - 22)[0], margin + 22, y + 5);
       } else {
@@ -3401,7 +3401,7 @@ const QUOTES = [
         doc.setFontSize(13);
         doc.setFont('helvetica', 'bold');
         if (dessert) {
-          doc.setTextColor(dessert.type === 'leftovers' ? [60, 140, 100] : [25, 20, 10]);
+          if (dessert.type === 'leftovers') { doc.setTextColor(60, 140, 100); } else { doc.setTextColor(25, 20, 10); }
           const name = dessert.type === 'leftovers' ? dessert.name : (dessert.name || '').toUpperCase();
           doc.text(doc.splitTextToSize(name, contentW - 22)[0], margin + 22, y + 5);
         } else {
