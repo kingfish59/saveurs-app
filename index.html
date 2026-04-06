@@ -3294,7 +3294,8 @@ const QUOTES = [
   }
 
   window.generateWeekPDF = () => {
-    const { jsPDF } = window.jspdf;
+    const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+    if (!jsPDF) { showToast('Erreur : librairie PDF non chargée'); return; }
     const wkey = getWeekKey(currentWeekOffset);
     const plan = weekPlan[wkey] || {};
     const weekStart = getWeekStart(currentWeekOffset);
