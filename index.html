@@ -1139,6 +1139,7 @@
       <div style="display:flex;gap:8px;margin-bottom:16px">
         <button onclick="inspireMe()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">✨ Inspire-moi</button>
         <button onclick="openShoppingList()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🛒 Liste de courses</button>
+        <button onclick="resetWeek()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🗑 Effacer</button>
       </div>
 
       <!-- Grille semaine -->
@@ -3056,8 +3057,8 @@ const QUOTES = [
         if (slot) {
           isEmpty = false;
           if (slot.type === 'leftovers') {
-            nameHTML = '<span class="meal-slot-name">🔄 ' + slot.name + '</span>';
-            metaHTML = '<div class="meal-slot-meta meal-slot-leftovers">Restes</div>';
+            nameHTML = '<span class="meal-slot-name" style="color:var(--green)">' + (slot.name || '').toUpperCase() + '</span>';
+            metaHTML = '<div class="meal-slot-meta" style="color:var(--green);opacity:0.7">Restes</div>';
           } else {
             nameHTML = '<span class="meal-slot-name">' + (slot.name || '').toUpperCase() + '</span>';
             if (slot.meta) metaHTML = '<div class="meal-slot-meta">' + slot.meta + '</div>';
@@ -3081,6 +3082,18 @@ const QUOTES = [
         + '</div>';
     }).join('');
   }
+
+  window.resetWeek = async () => {
+    if (!confirm('Effacer tous les repas de cette semaine ?')) return;
+    const wkey = getWeekKey(currentWeekOffset);
+    weekPlan[wkey] = {};
+    shoppingChecked = Object.fromEntries(
+      Object.entries(shoppingChecked).filter(([k]) => !k.startsWith(wkey))
+    );
+    await saveWeekPlan(wkey);
+    renderWeekGrid();
+    showToast('Semaine effacée');
+  };
 
   window.prevWeek = () => { currentWeekOffset--; renderWeekGrid(); };
   window.nextWeek = () => { currentWeekOffset++; renderWeekGrid(); };
@@ -3124,38 +3137,57 @@ const QUOTES = [
     el.innerHTML = '';
 
     const wkey = currentEditSlot?.wkey;
+    const slotKey = currentEditSlot?.slotKey || '';
     const plan = weekPlan[wkey] || {};
-    const filledSlots = Object.entries(plan).filter(([k, v]) => v && v.name && k !== currentEditSlot?.slotKey);
 
-    // Restes
-    if (filledSlots.length > 0) {
-      const header = document.createElement('div');
-      header.style.cssText = 'font-size:10px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin:8px 0 6px';
-      header.textContent = 'Restes';
-      el.appendChild(header);
+    // Calculer l'ordre du slot courant dans la semaine
+    const slotOrder = ['lundi-midi','lundi-soir','lundi-dessert','mardi-midi','mardi-soir','mardi-dessert',
+      'mercredi-midi','mercredi-soir','mercredi-dessert','jeudi-midi','jeudi-soir','jeudi-dessert',
+      'vendredi-midi','vendredi-soir','vendredi-dessert','samedi-midi','samedi-soir','samedi-dessert',
+      'dimanche-midi','dimanche-soir','dimanche-dessert'];
+    const currentIdx = slotOrder.indexOf(slotKey);
 
-      filledSlots.forEach(([k, v]) => {
-        const label = k.charAt(0).toUpperCase() + k.slice(1).replace('-', ' — ');
+    // Restes = uniquement les repas AVANT le slot courant
+    const previousSlots = Object.entries(plan).filter(([k, v]) => {
+      if (!v || !v.name || k === slotKey) return false;
+      if (v.type === 'leftovers') return false; // pas de restes de restes
+      const idx = slotOrder.indexOf(k);
+      return idx !== -1 && idx < currentIdx;
+    });
+
+    // Bouton déroulant Restes
+    if (previousSlots.length > 0) {
+      const toggle = document.createElement('button');
+      toggle.style.cssText = 'width:100%;text-align:left;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);padding:9px 12px;color:var(--text3);font-family:sans-serif;font-size:12px;cursor:pointer;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center';
+      toggle.innerHTML = '<span>🔄 Utiliser les restes d\'un repas</span><span id="restes-arrow">›</span>';
+      const restesContainer = document.createElement('div');
+      restesContainer.style.display = 'none';
+      toggle.onclick = () => {
+        const open = restesContainer.style.display !== 'none';
+        restesContainer.style.display = open ? 'none' : 'block';
+        document.getElementById('restes-arrow').textContent = open ? '›' : '⌄';
+      };
+      previousSlots.forEach(([k, v]) => {
+        const parts = k.split('-');
+        const label = parts[0].charAt(0).toUpperCase() + parts[0].slice(1) + ' ' + parts[1];
         const btn = document.createElement('div');
         btn.className = 'meal-option';
-        btn.textContent = '🔄 ' + label + ' — ' + (v.name || '').toUpperCase();
+        btn.style.marginBottom = '4px';
+        btn.textContent = label + ' — ' + (v.name || '').toUpperCase();
         btn.onclick = () => selectLeftovers(k, v.name);
-        el.appendChild(btn);
+        restesContainer.appendChild(btn);
       });
+      el.appendChild(toggle);
+      el.appendChild(restesContainer);
     }
 
     // Recettes
     const filtered = allRecipes.filter(r => {
       const d = typeof r.data === 'function' ? r.data() : r.data;
       return !norm || normalize(d.name).includes(norm);
-    }).slice(0, 20);
+    }).slice(0, 30);
 
     if (filtered.length > 0) {
-      const header = document.createElement('div');
-      header.style.cssText = 'font-size:10px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin:8px 0 6px';
-      header.textContent = 'Recettes';
-      el.appendChild(header);
-
       filtered.forEach(r => {
         const d = typeof r.data === 'function' ? r.data() : r.data;
         const meta = [d.category, d.prepTime ? '⏱ ' + d.prepTime : ''].filter(Boolean).join(' · ');
@@ -3242,9 +3274,16 @@ const QUOTES = [
     ingredientLines.forEach(line => {
       // Extraire quantité et ingrédient : "200g farine", "3 oeufs", "1 oignon"
       const match = line.match(/^([\d,.]+\s*(?:g|kg|cl|ml|l|cs|cc|c\.s\.|c\.c\.)?)\s+(.+)$/i);
+      // Normaliser : supprimer le 's' final pour dédoublonner singulier/pluriel
+      function normIngredient(s) {
+        return s.trim().toLowerCase()
+          .replace(/œ/g, 'oe')
+          .replace(/s$/, ''); // retirer le s final
+      }
+
       if (match) {
         const qty = match[1].trim();
-        const name = match[2].trim().toLowerCase();
+        const name = normIngredient(match[2]);
         // Tenter d'additionner les quantités numériques
         const num = parseFloat(qty.replace(',', '.'));
         const unit = qty.replace(/[\d,.]/g, '').trim();
@@ -3261,7 +3300,7 @@ const QUOTES = [
         }
       } else {
         // Pas de quantité détectée
-        const name = line.toLowerCase();
+        const name = normIngredient(line);
         if (!grouped[name]) grouped[name] = { qty: null, unit: '', original: line };
       }
     });
