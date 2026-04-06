@@ -4057,7 +4057,7 @@ const QUOTES = [
 
   window.shareApp = async () => {
     const userName = currentUser?.displayName?.split(' ')[0] || 'Frédéric';
-    const text = userName + " t'invite à utiliser Saveurs, l'appli de recettes familiales :\n\nhttps://saveurs-app.vercel.app\n\nConnecte-toi avec ton compte Google et rejoins le groupe famille pour partager nos recettes !";
+    const text = userName + " t'invite à utiliser Saveurs, l'appli de recettes familiales !\n\n🍲 Ouvrir l'appli :\nhttps://saveurs-app.vercel.app\n\n📖 Mode d'emploi :\nhttps://saveurs-app.vercel.app/saveurs-guide.html\n\nConnecte-toi avec ton compte Google puis rejoins le groupe famille.";
     if (navigator.share) {
       try {
         await navigator.share({ title: 'Saveurs — Recettes familiales', text });
