@@ -1991,10 +1991,17 @@ const QUOTES = [
         const groupDoc = await getDoc(doc(db, 'groups', userGroupId));
         if (groupDoc.exists()) await showGroupInfo(groupDoc);
       } catch(e) {}
-      if (btnCreate) btnCreate.style.display = 'none';
+      // Toujours afficher le bouton créer, mais avec texte adapté
+      if (btnCreate) {
+        btnCreate.style.display = 'block';
+        btnCreate.textContent = 'Créer un nouveau groupe';
+      }
     } else {
       document.getElementById('current-group-info').innerHTML = '';
-      if (btnCreate) btnCreate.style.display = 'block';
+      if (btnCreate) {
+        btnCreate.style.display = 'block';
+        btnCreate.textContent = 'Créer un groupe';
+      }
     }
     openModal('modal-group');
   };
