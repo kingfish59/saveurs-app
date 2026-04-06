@@ -224,7 +224,7 @@
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
       <div id="last-refresh" style="font-size:11px;color:var(--text3)"></div>
-      <button class="btn-refresh" onclick="loadDashboard()">↻ Actualiser</button>
+      <button class="btn-refresh" onclick="loadDashboard()" style="position:relative">↻ Actualiser <span id="admin-msg-badge" style="display:none;position:absolute;top:-4px;right:-4px;width:8px;height:8px;background:#c94c4c;border-radius:50%"></span></button>
       <button onclick="signOutAdmin()" style="background:none;border:1px solid rgba(201,76,76,0.3);border-radius:8px;padding:8px 14px;color:var(--red);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">Déconnexion</button>
     </div>
   </div>
@@ -271,10 +271,31 @@
       <div id="recipes-by-group"><div class="empty">Cliquez sur un groupe ci-dessus pour voir ses recettes</div></div>
     </div>
 
+    <!-- Messages utilisateurs -->
+    <div class="section">
+      <div class="section-title" style="display:flex;align-items:center;gap:10px">
+        Messages
+        <span id="messages-badge" style="display:none;background:#c94c4c;color:white;border-radius:10px;padding:2px 8px;font-size:12px;font-family:'DM Sans',sans-serif"></span>
+      </div>
+      <div id="messages-list"><div class="loading">Chargement...</div></div>
+    </div>
+
     <!-- Activité récente -->
     <div class="section">
       <div class="section-title">Activité récente (30 dernières cuisines)</div>
       <div id="activity-table"><div class="loading">Chargement...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RÉPONSE -->
+<div class="modal-overlay" id="modal-reply">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-title">Répondre à <span id="reply-modal-name" style="color:var(--gold2)"></span></div>
+    <textarea id="reply-text" placeholder="Votre réponse..." style="width:100%;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:12px;padding:12px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;resize:none;height:120px;margin-bottom:16px"></textarea>
+    <div style="display:flex;gap:10px">
+      <button class="btn-gold" onclick="sendReply()" style="flex:1;padding:10px">Envoyer la réponse</button>
+      <button class="btn-secondary" onclick="closeModal('modal-reply')">Annuler</button>
     </div>
   </div>
 </div>
@@ -365,7 +386,7 @@
   window.loadDashboard = async () => {
     document.getElementById('last-refresh').textContent = 'Actualisation...';
     try {
-      await Promise.all([loadUsers(), loadGroups(), loadActivity()]);
+      await Promise.all([loadUsers(), loadGroups(), loadActivity(), loadMessages()]);
       document.getElementById('last-refresh').textContent = 'Actualisé à ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     } catch(e) {
       document.getElementById('last-refresh').textContent = 'Erreur : ' + e.message;
@@ -587,14 +608,17 @@
         </div>
         <div>
           <div style="font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">Recettes (${recipes.length})</div>
-          ${recipes.map(r => `
-            <div onclick="openRecipeModal(${JSON.stringify(JSON.stringify(r))},'${groupId}')" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(201,168,76,0.06);cursor:pointer">
+          ${recipes.map((r, ri) => {
+            window._adminRecipes = window._adminRecipes || [];
+            window._adminRecipes[ri] = { ...r, sourceGroupId: groupId };
+            return `<div onclick="openRecipeModal(${ri})" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(201,168,76,0.06);cursor:pointer">
               <div>
                 <div style="font-size:13px;color:var(--text);font-weight:500">${(r.name||'—').toUpperCase()}</div>
                 <div style="font-size:11px;color:var(--text3)">${[r.category, typeIcons[r.type], r.prepTime ? r.prepTime+' min' : ''].filter(Boolean).join(' · ')}</div>
               </div>
               <span style="color:var(--gold)">›</span>
-            </div>`).join('')}
+            </div>`;
+          }).join('')}
         </div>`;
     } catch(e) {
       document.getElementById('modal-group-content').innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>';
@@ -620,9 +644,10 @@
   };
 
   // ===== MODAL RECETTE =====
-  window.openRecipeModal = (recipeJson, groupId) => {
-    const r = JSON.parse(recipeJson);
-    currentRecipeData = { ...r, sourceGroupId: groupId };
+  window.openRecipeModal = (idx) => {
+    const r = (window._adminRecipes || [])[idx];
+    if (!r) { showToast('Recette introuvable'); return; }
+    currentRecipeData = r;
     document.getElementById('modal-recipe-title').textContent = (r.name || '—').toUpperCase();
     const typeLabels = { viande: '🥩 Viande', poisson: '🐟 Poisson', 'vegé': '🥦 Végétarien' };
     const costSymbols = { 1: '€', 2: '€€', 3: '€€€' };
@@ -644,7 +669,7 @@
     if (!currentRecipeData) return;
     try {
       const myGroupId = ADMIN_UID; // mon groupe personnel
-      const { sourceGroupId, id, ...recipeData } = currentRecipeData;
+      const { sourceGroupId, id, _idx, ...recipeData } = currentRecipeData;
       await addDoc(collection(db, 'groups', myGroupId, 'recipes'), {
         ...recipeData,
         importedFrom: sourceGroupId,
@@ -656,6 +681,79 @@
   };
 
   // ===== TOAST =====
+  async function loadMessages() {
+    try {
+      const snap = await getDocs(query(collection(db, 'messages'), orderBy('createdAt', 'desc')));
+      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const unread = msgs.filter(m => !m.readByAdmin).length;
+
+      // Badge
+      const badge = document.getElementById('messages-badge');
+      const headerBadge = document.getElementById('admin-msg-badge');
+      if (badge) { badge.style.display = unread > 0 ? 'inline' : 'none'; badge.textContent = unread + ' nouveau' + (unread > 1 ? 'x' : ''); }
+      if (headerBadge) headerBadge.style.display = unread > 0 ? 'block' : 'none';
+
+      const typeLabels = { suggestion: '💡 Suggestion', bug: '🐛 Bug', avis: '⭐ Avis' };
+      const el = document.getElementById('messages-list');
+
+      if (msgs.length === 0) {
+        el.innerHTML = '<div class="empty">Aucun message</div>';
+        return;
+      }
+
+      el.innerHTML = msgs.map(m => {
+        const date = m.createdAt?.toDate?.()?.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) || '—';
+        return `<div style="background:var(--surface);border:1px solid rgba(201,168,76,${m.readByAdmin ? '0.08' : '0.25'});border-radius:12px;padding:16px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <strong style="color:var(--text)">${m.displayName || '—'}</strong>
+              <span class="badge">${typeLabels[m.type] || m.type}</span>
+              ${!m.readByAdmin ? '<span class="badge" style="background:rgba(201,76,76,0.15);color:#c94c4c;border-color:rgba(201,76,76,0.3)">Non lu</span>' : ''}
+            </div>
+            <span style="font-size:11px;color:var(--text3)">${date}</span>
+          </div>
+          <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:10px">${m.text}</div>
+          ${m.reply ? `<div style="background:rgba(201,168,76,0.08);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px;color:var(--text3)">Répondu : ${m.reply}</div>` : ''}
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${!m.readByAdmin ? `<button onclick="markMessageRead('${m.id}')" class="btn-secondary" style="font-size:11px;padding:5px 10px">✓ Marquer lu</button>` : ''}
+            <button onclick="openReplyModal('${m.id}','${(m.displayName||'').replace(/'/g,'')}')" class="btn-gold" style="font-size:11px;padding:5px 10px">↩ Répondre</button>
+          </div>
+        </div>`;
+      }).join('');
+    } catch(e) {
+      document.getElementById('messages-list').innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>';
+    }
+  }
+
+  window.markMessageRead = async (id) => {
+    await updateDoc(doc(db, 'messages', id), { readByAdmin: true });
+    await loadMessages();
+  };
+
+  let currentReplyMsgId = null;
+  window.openReplyModal = (id, name) => {
+    currentReplyMsgId = id;
+    document.getElementById('reply-modal-name').textContent = name;
+    document.getElementById('reply-text').value = '';
+    document.getElementById('modal-reply').classList.add('open');
+  };
+
+  window.sendReply = async () => {
+    const text = document.getElementById('reply-text').value.trim();
+    if (!text || !currentReplyMsgId) return;
+    try {
+      await updateDoc(doc(db, 'messages', currentReplyMsgId), {
+        reply: text,
+        replyAt: serverTimestamp(),
+        replyRead: false,
+        readByAdmin: true
+      });
+      closeModal('modal-reply');
+      showToast('Réponse envoyée !');
+      await loadMessages();
+    } catch(e) { showToast('Erreur : ' + e.message); }
+  };
+
   function showToast(msg) {
     let t = document.getElementById('admin-toast');
     if (!t) {
