@@ -3179,110 +3179,98 @@ const QUOTES = [
     const weekStart = getWeekStart(currentWeekOffset);
     const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
 
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    const pageW = 297; const pageH = 210;
-    const margin = 10;
-    const colW = (pageW - margin * 2) / 7;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageW = 210; const pageH = 297;
+    const margin = 14;
+    const contentW = pageW - margin * 2;
 
-    // Fond sombre
-    doc.setFillColor(15, 13, 8);
+    // Fond blanc
+    doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, pageW, pageH, 'F');
 
     // Titre
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(20);
-    doc.setTextColor(201, 168, 76);
-    doc.text('SAVEURS', pageW / 2, 14, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(170, 125, 45);
+    doc.text('SAVEURS', pageW / 2, 18, { align: 'center' });
 
-    doc.setFontSize(8);
-    doc.setTextColor(120, 110, 88);
-    doc.text('Semaine du ' + formatDayDate(weekStart) + ' au ' + formatDayDate(weekEnd), pageW / 2, 20, { align: 'center' });
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(150, 140, 120);
+    doc.text('Semaine du ' + formatDayDate(weekStart) + ' au ' + formatDayDate(weekEnd), pageW / 2, 25, { align: 'center' });
 
     // Ligne dorée
     doc.setDrawColor(201, 168, 76);
-    doc.setLineWidth(0.3);
-    doc.line(margin, 23, pageW - margin, 23);
+    doc.setLineWidth(0.5);
+    doc.line(margin, 29, pageW - margin, 29);
 
-    const gridTop = 26;
-    const gridH = pageH - gridTop - margin;
+    let y = 36;
+    const lineH = 7;
 
     DAYS.forEach((dayName, i) => {
       const date = new Date(weekStart); date.setDate(weekStart.getDate() + i);
       const dayKey = dayName.toLowerCase();
-      const x = margin + i * colW;
 
-      // Fond colonne header
-      doc.setFillColor(42, 37, 25);
-      doc.rect(x, gridTop, colW - 1, 10, 'F');
+      // Fond header jour
+      doc.setFillColor(250, 245, 235);
+      doc.rect(margin, y - 4.5, contentW, 8, 'F');
 
-      // Nom du jour
-      doc.setFontSize(9);
-      doc.setTextColor(201, 168, 76);
+      // Nom du jour + date
+      doc.setFontSize(13);
       doc.setFont('helvetica', 'bold');
-      doc.text(dayName.toUpperCase(), x + colW/2 - 0.5, gridTop + 5, { align: 'center' });
+      doc.setTextColor(150, 110, 40);
+      doc.text(dayName, margin + 2, y);
 
-      // Date
-      doc.setFontSize(7);
-      doc.setTextColor(120, 110, 88);
+      doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.text(formatDayDate(date), x + colW/2 - 0.5, gridTop + 8.5, { align: 'center' });
+      doc.setTextColor(160, 150, 130);
+      doc.text(formatDayDate(date), pageW - margin - 2, y, { align: 'right' });
 
-      // Slots
-      const slotH = (gridH - 10) / 3;
-      MEALS.forEach((meal, j) => {
+      y += 5;
+
+      // Slots repas
+      const activeMeals = MEALS.filter(m => !m.optional || plan[dayKey + '-' + m.key]);
+      activeMeals.forEach(meal => {
         const slotKey = dayKey + '-' + meal.key;
         const slot = plan[slotKey];
-        if (meal.optional && !slot) return;
-
-        const sy = gridTop + 10 + j * slotH;
-
-        // Fond slot
-        doc.setFillColor(26, 23, 16);
-        doc.rect(x, sy, colW - 1, slotH - 0.5, 'F');
 
         // Label
-        doc.setFontSize(6);
-        doc.setTextColor(90, 80, 58);
+        doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        doc.text(meal.label.toUpperCase(), x + 2, sy + 4);
+        doc.setTextColor(180, 170, 150);
+        doc.text(meal.label, margin + 3, y);
 
-        // Nom du repas
-        if (slot) {
-          const name = (slot.name || '').toUpperCase();
-          doc.setFontSize(7.5);
+        // Nom recette
+        if (slot && slot.name) {
+          doc.setFontSize(13);
           doc.setFont('helvetica', 'bold');
           if (slot.type === 'leftovers') {
-            doc.setTextColor(76, 172, 122); // vert
+            doc.setTextColor(60, 140, 100);
           } else {
-            doc.setTextColor(240, 232, 213);
+            doc.setTextColor(30, 25, 15);
           }
-          // Couper le texte si trop long
-          const lines = doc.splitTextToSize(name, colW - 5);
-          doc.text(lines.slice(0, 2), x + 2, sy + 9);
+          const name = slot.type === 'leftovers' ? slot.name : (slot.name || '').toUpperCase();
+          doc.text(name, margin + 22, y);
         } else {
-          doc.setFontSize(7);
-          doc.setTextColor(60, 55, 40);
+          doc.setFontSize(11);
           doc.setFont('helvetica', 'italic');
-          doc.text('—', x + 2, sy + 9);
+          doc.setTextColor(200, 195, 185);
+          doc.text('—', margin + 22, y);
         }
 
-        // Ligne séparatrice
-        doc.setDrawColor(42, 37, 25);
-        doc.setLineWidth(0.2);
-        doc.line(x, sy + slotH - 0.5, x + colW - 1, sy + slotH - 0.5);
+        y += lineH;
       });
 
-      // Bordure colonne
-      doc.setDrawColor(60, 50, 30);
-      doc.setLineWidth(0.3);
-      doc.rect(x, gridTop, colW - 1, gridH, 'S');
+      // Ligne séparatrice légère entre les jours
+      doc.setDrawColor(220, 210, 190);
+      doc.setLineWidth(0.2);
+      doc.line(margin, y - 1, pageW - margin, y - 1);
+      y += 3;
     });
 
-    // Générer blob et ouvrir dans modal
+    // Générer blob et ouvrir modal
     const pdfBlob = doc.output('blob');
     const pdfUrl = URL.createObjectURL(pdfBlob);
-
-    // Afficher dans modal avec options imprimer/partager
     document.getElementById('pdf-preview-frame').src = pdfUrl;
     document.getElementById('pdf-blob-url').value = pdfUrl;
     openModal('modal-pdf-preview');
