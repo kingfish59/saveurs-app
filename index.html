@@ -1480,7 +1480,8 @@
         Partagez vos recettes avec votre famille. Chaque membre voit et peut modifier les mêmes recettes.
       </p>
       <div id="current-group-info"></div>
-      <div style="text-align:center;margin:16px 0;color:var(--text3);font-size:12px">-- ou --</div>
+      <button class="btn-primary" onclick="createGroup()" id="btn-create-group">Créer un groupe</button>
+      <div style="text-align:center;margin:16px 0;color:var(--text3);font-size:12px">-- ou rejoindre --</div>
       <div class="form-group">
         <label class="form-label">Rejoindre avec un code</label>
         <input class="form-input" id="join-code" type="text" placeholder="Code à 6 lettres" maxlength="6" style="text-transform:uppercase;letter-spacing:4px;text-align:center">
@@ -1846,18 +1847,58 @@ const QUOTES = [
     }
   }
 
+  // Migration des recettes de l'uid personnel vers un groupe
+  async function migrateRecipesToGroup(newGroupId) {
+    try {
+      const oldGid = currentUser.uid;
+      if (oldGid === newGroupId) return; // déjà dans ce groupe
+      
+      // Recettes
+      const recipesSnap = await getDocs(collection(db, 'groups', oldGid, 'recipes'));
+      for (const d of recipesSnap.docs) {
+        await addDoc(collection(db, 'groups', newGroupId, 'recipes'), d.data());
+      }
+      
+      // Historique
+      const historySnap = await getDocs(collection(db, 'groups', oldGid, 'history'));
+      for (const d of historySnap.docs) {
+        await addDoc(collection(db, 'groups', newGroupId, 'history'), d.data());
+      }
+      
+      // Invités
+      const guestsSnap = await getDocs(collection(db, 'groups', oldGid, 'guests'));
+      for (const d of guestsSnap.docs) {
+        await addDoc(collection(db, 'groups', newGroupId, 'guests'), d.data());
+      }
+      
+      console.log('Migration terminée : ' + recipesSnap.docs.length + ' recettes migrées');
+    } catch(e) {
+      console.error('Erreur migration:', e);
+    }
+  }
+
   window.createGroup = async () => {
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const groupRef = await addDoc(collection(db, 'groups'), {
-      code,
-      createdBy: currentUser.uid,
-      createdAt: serverTimestamp(),
-      members: [currentUser.uid]
-    });
-    await setDoc(doc(db, 'users', currentUser.uid), { groupId: groupRef.id }, { merge: true });
-    userGroupId = groupRef.id;
-    showGroupCode(code);
-    showToast('Groupe créé !');
+    if (!confirm('Créer un groupe ? Vos recettes existantes seront migrées vers ce groupe.')) return;
+    try {
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const groupRef = await addDoc(collection(db, 'groups'), {
+        code,
+        createdBy: currentUser.uid,
+        createdAt: serverTimestamp(),
+        members: [currentUser.uid]
+      });
+      showToast('Migration en cours...');
+      await migrateRecipesToGroup(groupRef.id);
+      await setDoc(doc(db, 'users', currentUser.uid), { groupId: groupRef.id }, { merge: true });
+      userGroupId = groupRef.id;
+      await loadRecentRecipes();
+      loadStats();
+      const groupDoc = await getDoc(doc(db, 'groups', groupRef.id));
+      await showGroupInfo(groupDoc);
+      showToast('Groupe créé et recettes migrées !');
+    } catch(e) {
+      showToast('Erreur : ' + e.message);
+    }
   };
 
   window.joinGroup = async () => {
@@ -1867,14 +1908,25 @@ const QUOTES = [
     const snap = await getDocs(q);
     if (snap.empty) { showToast('Groupe introuvable'); return; }
     const groupDoc = snap.docs[0];
-    const members = groupDoc.data().members || [];
-    if (!members.includes(currentUser.uid)) {
-      await updateDoc(groupDoc.ref, { members: [...members, currentUser.uid] });
+    const newGroupId = groupDoc.id;
+    if (!confirm('Rejoindre ce groupe ? Vos recettes existantes seront migrées vers le groupe.')) return;
+    try {
+      const members = groupDoc.data().members || [];
+      if (!members.includes(currentUser.uid)) {
+        await updateDoc(groupDoc.ref, { members: [...members, currentUser.uid] });
+      }
+      showToast('Migration en cours...');
+      await migrateRecipesToGroup(newGroupId);
+      await setDoc(doc(db, 'users', currentUser.uid), { groupId: newGroupId }, { merge: true });
+      userGroupId = newGroupId;
+      await loadRecentRecipes();
+      loadStats();
+      const updatedDoc = await getDoc(doc(db, 'groups', newGroupId));
+      await showGroupInfo(updatedDoc);
+      showToast('Groupe rejoint et recettes migrées !');
+    } catch(e) {
+      showToast('Erreur : ' + e.message);
     }
-    await setDoc(doc(db, 'users', currentUser.uid), { groupId: groupDoc.id }, { merge: true });
-    userGroupId = groupDoc.id;
-    showToast('Groupe rejoint !');
-    closeModal('modal-group');
   };
 
   async function showGroupInfo(groupDoc) {
@@ -1933,13 +1985,16 @@ const QUOTES = [
   };
 
   window.openGroupModal = async () => {
+    const btnCreate = document.getElementById('btn-create-group');
     if (userGroupId) {
       try {
         const groupDoc = await getDoc(doc(db, 'groups', userGroupId));
         if (groupDoc.exists()) await showGroupInfo(groupDoc);
       } catch(e) {}
+      if (btnCreate) btnCreate.style.display = 'none';
     } else {
       document.getElementById('current-group-info').innerHTML = '';
+      if (btnCreate) btnCreate.style.display = 'block';
     }
     openModal('modal-group');
   };
