@@ -2241,10 +2241,14 @@ const QUOTES = [
     if (!currentUser) return;
     try {
       const gid = userGroupId || currentUser.uid;
-      const [recipesSnap, historySnap] = await Promise.all([
+      const [recipesSnap, historySnap, sharedSentSnap, recipesAllSnap] = await Promise.all([
         getDocs(getRecipesRef()),
-        getDocs(collection(db, 'groups', gid, 'history'))
+        getDocs(collection(db, 'groups', gid, 'history')),
+        getDocs(query(collection(db, 'shared'), where('sharedBy', '==', currentUser.displayName || currentUser.email))),
+        getDocs(getRecipesRef())
       ]);
+      const sharedSent = sharedSentSnap.size;
+      const sharedReceived = recipesAllSnap.docs.filter(d => d.data().importedFromShared).length;
       document.getElementById('stat-recipes').textContent = recipesSnap.size;
       document.getElementById('stat-cooked').textContent = historySnap.size;
     } catch (e) { console.error('loadStatsPage:', e); }
@@ -2713,7 +2717,65 @@ const QUOTES = [
       // 3 dernières préparations
       const recentHistory = history.slice(0, 5);
 
-      el.innerHTML = `
+      // --- BADGES ---
+      const BADGES_SENT = [
+        { min: 1,  emoji: '🌱', label: 'Apprenti',    desc: '1 recette partagée' },
+        { min: 5,  emoji: '👨‍🍳', label: 'Cuisinier',   desc: '5 recettes partagées' },
+        { min: 15, emoji: '⭐', label: 'Chef',         desc: '15 recettes partagées' },
+        { min: 30, emoji: '🏆', label: 'Grand Chef',   desc: '30 recettes partagées' },
+      ];
+      const BADGES_RECV = [
+        { min: 1,  emoji: '🍽', label: 'Gourmet',     desc: '1 recette reçue' },
+        { min: 5,  emoji: '🤝', label: 'Gourmand',    desc: '5 recettes reçues' },
+        { min: 10, emoji: '💫', label: 'Épicurien',   desc: '10 recettes reçues' },
+      ];
+      const BADGES_COOK = [
+        { min: 5,  emoji: '🔥', label: 'En feu',      desc: '5 nouveaux plats cuisinés en 30 jours' },
+        { min: 1,  emoji: '👑', label: 'Légende',     desc: 'Tous les badges débloqués' },
+      ];
+
+      // Calculer En feu
+      const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const recentCooks = history.filter(h => h.date && new Date(h.date) >= thirtyDaysAgo).length;
+      const allUnlocked = sharedSent >= 30 && sharedReceived >= 10 && recentCooks >= 5;
+
+      const badgeValues = {
+        sent: sharedSent, recv: sharedReceived,
+        fire: recentCooks, legend: allUnlocked ? 1 : 0
+      };
+
+      const renderBadge = (badge, value, type) => {
+        const unlocked = type === 'legend' ? allUnlocked : (type === 'fire' ? recentCooks >= badge.min : value >= badge.min);
+        return '<div style="display:flex;flex-direction:column;align-items:center;gap:6px;opacity:' + (unlocked ? '1' : '0.25') + '">'
+          + '<div style="font-size:32px;line-height:1">' + badge.emoji + '</div>'
+          + '<div style="font-size:11px;font-weight:500;color:' + (unlocked ? 'var(--gold)' : 'var(--text3)') + '">' + badge.label + '</div>'
+          + '<div style="font-size:10px;color:var(--text3);text-align:center">' + badge.desc + '</div>'
+          + '</div>';
+      };
+
+      const hasAnyBadge = sharedSent > 0 || sharedReceived > 0 || recentCooks >= 5;
+      const badgesHTML = '<div class="stats-section" style="margin-bottom:0">'
+        + '<div class="stats-section-title">Badges</div>'
+        + (!hasAnyBadge
+          ? '<div style="font-size:13px;color:var(--text3);padding:12px 0">Partagez votre première recette pour débloquer votre premier badge 🍳</div>'
+          : '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:8px 0">'
+            + BADGES_SENT.map(b => renderBadge(b, sharedSent, 'sent')).join('')
+            + '</div>'
+            + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:8px 0;margin-top:8px">'
+            + BADGES_RECV.map(b => renderBadge(b, sharedReceived, 'recv')).join('')
+            + '</div>'
+            + '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:8px 0;margin-top:8px">'
+            + '<div>' + renderBadge(BADGES_COOK[0], recentCooks, 'fire') + '</div>'
+            + '<div>' + renderBadge(BADGES_COOK[1], 0, 'legend') + '</div>'
+            + '</div>'
+            + '<div style="font-size:11px;color:var(--text3);margin-top:8px">'
+            + sharedSent + ' recette' + (sharedSent > 1 ? 's' : '') + ' partagée' + (sharedSent > 1 ? 's' : '') + ' · '
+            + sharedReceived + ' reçue' + (sharedReceived > 1 ? 's' : '')
+            + '</div>'
+        )
+        + '</div>';
+
+      el.innerHTML = badgesHTML + `
         <div class="stats-section">
           <div class="stats-section-title">Vue d'ensemble</div>
           <div class="stats-grid">
@@ -4497,7 +4559,8 @@ const QUOTES = [
       const gid = userGroupId || currentUser.uid;
       await addDoc(collection(db, 'groups', gid, 'recipes'), {
         ...pendingSharedRecipe,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        importedFromShared: true
       });
       closeModal('modal-shared-recipe');
       showToast('Recette ajoutée !');
