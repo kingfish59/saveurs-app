@@ -2846,7 +2846,8 @@ const QUOTES = [
         </div>` : ''}
       `;
     } catch(e) {
-      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Aucune donnée</div></div>';
+      console.error('loadStatsPage error:', e);
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Erreur : ' + e.message + '</div></div>';
     }
   }
 
