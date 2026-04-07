@@ -3898,8 +3898,16 @@ const QUOTES = [
     showToast('Semaine effacée');
   };
 
-  window.prevWeek = () => { currentWeekOffset--; renderWeekGrid(); };
-  window.nextWeek = () => { currentWeekOffset++; renderWeekGrid(); };
+  window.prevWeek = () => {
+    currentWeekOffset--;
+    const wkey = getWeekKey(currentWeekOffset);
+    loadWeekPlan(wkey).then(() => renderWeekGrid());
+  };
+  window.nextWeek = () => {
+    currentWeekOffset++;
+    const wkey = getWeekKey(currentWeekOffset);
+    loadWeekPlan(wkey).then(() => renderWeekGrid());
+  };
 
   window.toggleShoppingCheck = (wkey, slotKey) => {
     const k = wkey + '-' + slotKey;
@@ -4026,9 +4034,9 @@ const QUOTES = [
     const { wkey, slotKey } = currentEditSlot;
     if (!weekPlan[wkey]) weekPlan[wkey] = {};
     weekPlan[wkey][slotKey] = { type: 'recipe', recipeId, name, meta };
-    saveWeekPlan(wkey);
     closeModal('modal-meal');
     renderWeekGrid();
+    saveWeekPlan(wkey); // async en arrière-plan
   };
 
   window.selectLeftovers = (fromSlot, name) => {
@@ -4036,9 +4044,9 @@ const QUOTES = [
     const { wkey, slotKey } = currentEditSlot;
     if (!weekPlan[wkey]) weekPlan[wkey] = {};
     weekPlan[wkey][slotKey] = { type: 'leftovers', fromSlot, name };
-    saveWeekPlan(wkey);
     closeModal('modal-meal');
     renderWeekGrid();
+    saveWeekPlan(wkey); // async en arrière-plan
   };
 
   window.inspireMe = () => {
@@ -4216,17 +4224,28 @@ const QUOTES = [
   async function saveWeekPlan(wkey) {
     try {
       const gid = userGroupId || currentUser.uid;
-      await setDoc(doc(db, 'groups', gid, 'weekplans', wkey), weekPlan[wkey] || {});
-    } catch(e) { console.error('saveWeekPlan:', e); }
+      const data = weekPlan[wkey] || {};
+      // Nettoyer les valeurs undefined avant sauvegarde
+      const clean = JSON.parse(JSON.stringify(data));
+      await setDoc(doc(db, 'groups', gid, 'weekplans', wkey), clean);
+      console.log('saveWeekPlan OK:', wkey, Object.keys(clean).length, 'slots');
+    } catch(e) {
+      console.error('saveWeekPlan error:', e);
+      showToast('Erreur sauvegarde planning — réessayez');
+    }
   }
 
   async function loadWeekPlan(wkey) {
-    if (weekPlan[wkey]) return;
+    // Toujours recharger depuis Firebase (ne pas utiliser le cache)
     try {
       const gid = userGroupId || currentUser.uid;
       const d = await getDoc(doc(db, 'groups', gid, 'weekplans', wkey));
       weekPlan[wkey] = d.exists() ? d.data() : {};
-    } catch(e) { weekPlan[wkey] = {}; }
+      console.log('loadWeekPlan OK:', wkey, Object.keys(weekPlan[wkey]).length, 'slots');
+    } catch(e) {
+      console.error('loadWeekPlan error:', e);
+      if (!weekPlan[wkey]) weekPlan[wkey] = {};
+    }
   }
 
   let currentEditSlot = null;
