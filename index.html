@@ -1646,7 +1646,7 @@
     <div class="detail-title" id="detail-title"></div>
     <button class="detail-edit-btn" onclick="openEditModal()" title="Modifier">✎</button>
     <button onclick="exportSinglePDF()" title="Imprimer" style="background:none;border:none;cursor:pointer;padding:8px;line-height:1;opacity:0.7;transition:opacity 0.2s;color:var(--gold);display:flex;align-items:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><path d="M6 14h12v8H6z"/></svg></button>
-
+    <button onclick="shareRecipe()" title="Partager" style="background:none;border:none;cursor:pointer;padding:8px;line-height:1;opacity:0.7;transition:opacity 0.2s;color:var(--gold);display:flex;align-items:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><path d="M12 3v12"/><path d="M9 6l3-3 3 3"/></svg></button>
     <button onclick="shareLinkRecipe()" title="Envoyer par lien" style="background:none;border:none;cursor:pointer;padding:8px;line-height:1;opacity:0.7;transition:opacity 0.2s;color:var(--gold);display:flex;align-items:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
     <button class="detail-delete-btn" onclick="confirmDelete()" title="Supprimer">🗑</button>
   </div>
@@ -2245,15 +2245,6 @@ const QUOTES = [
         getDocs(getRecipesRef()),
         getDocs(collection(db, 'groups', gid, 'history'))
       ]);
-      // Badges : calcul à partir des données déjà chargées
-      const userLabel = currentUser.displayName || currentUser.email;
-      let sharedSent = 0;
-      let sharedReceived = 0;
-      try {
-        const sharedSnap = await getDocs(collection(db, 'shared'));
-        sharedSent = sharedSnap.docs.filter(d => d.data().sharedBy === userLabel).length;
-        sharedReceived = recipesSnap.docs.filter(d => d.data().importedFromShared).length;
-      } catch(e) { console.warn('badges error:', e); }
       document.getElementById('stat-recipes').textContent = recipesSnap.size;
       document.getElementById('stat-cooked').textContent = historySnap.size;
     } catch (e) { console.error('loadStatsPage:', e); }
@@ -2722,65 +2713,7 @@ const QUOTES = [
       // 3 dernières préparations
       const recentHistory = history.slice(0, 5);
 
-      // --- BADGES ---
-      const BADGES_SENT = [
-        { min: 1,  emoji: '🌱', label: 'Apprenti',    desc: '1 recette partagée' },
-        { min: 5,  emoji: '👨‍🍳', label: 'Cuisinier',   desc: '5 recettes partagées' },
-        { min: 15, emoji: '⭐', label: 'Chef',         desc: '15 recettes partagées' },
-        { min: 30, emoji: '🏆', label: 'Grand Chef',   desc: '30 recettes partagées' },
-      ];
-      const BADGES_RECV = [
-        { min: 1,  emoji: '🍽', label: 'Gourmet',     desc: '1 recette reçue' },
-        { min: 5,  emoji: '🤝', label: 'Gourmand',    desc: '5 recettes reçues' },
-        { min: 10, emoji: '💫', label: 'Épicurien',   desc: '10 recettes reçues' },
-      ];
-      const BADGES_COOK = [
-        { min: 5,  emoji: '🔥', label: 'En feu',      desc: '5 nouveaux plats cuisinés en 30 jours' },
-        { min: 1,  emoji: '👑', label: 'Légende',     desc: 'Tous les badges débloqués' },
-      ];
-
-      // Calculer En feu
-      const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const recentCooks = history.filter(h => h.date && new Date(h.date) >= thirtyDaysAgo).length;
-      const allUnlocked = sharedSent >= 30 && sharedReceived >= 10 && recentCooks >= 5;
-
-      const badgeValues = {
-        sent: sharedSent, recv: sharedReceived,
-        fire: recentCooks, legend: allUnlocked ? 1 : 0
-      };
-
-      const renderBadge = (badge, value, type) => {
-        const unlocked = type === 'legend' ? allUnlocked : (type === 'fire' ? recentCooks >= badge.min : value >= badge.min);
-        return '<div style="display:flex;flex-direction:column;align-items:center;gap:6px;opacity:' + (unlocked ? '1' : '0.25') + '">'
-          + '<div style="font-size:32px;line-height:1">' + badge.emoji + '</div>'
-          + '<div style="font-size:11px;font-weight:500;color:' + (unlocked ? 'var(--gold)' : 'var(--text3)') + '">' + badge.label + '</div>'
-          + '<div style="font-size:10px;color:var(--text3);text-align:center">' + badge.desc + '</div>'
-          + '</div>';
-      };
-
-      const hasAnyBadge = sharedSent > 0 || sharedReceived > 0 || recentCooks >= 5;
-      const badgesHTML = '<div class="stats-section" style="margin-bottom:0">'
-        + '<div class="stats-section-title">Badges</div>'
-        + (!hasAnyBadge
-          ? '<div style="font-size:13px;color:var(--text3);padding:12px 0">Partagez votre première recette pour débloquer votre premier badge 🍳</div>'
-          : '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:8px 0">'
-            + BADGES_SENT.map(b => renderBadge(b, sharedSent, 'sent')).join('')
-            + '</div>'
-            + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:8px 0;margin-top:8px">'
-            + BADGES_RECV.map(b => renderBadge(b, sharedReceived, 'recv')).join('')
-            + '</div>'
-            + '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:8px 0;margin-top:8px">'
-            + '<div>' + renderBadge(BADGES_COOK[0], recentCooks, 'fire') + '</div>'
-            + '<div>' + renderBadge(BADGES_COOK[1], 0, 'legend') + '</div>'
-            + '</div>'
-            + '<div style="font-size:11px;color:var(--text3);margin-top:8px">'
-            + sharedSent + ' recette' + (sharedSent > 1 ? 's' : '') + ' partagée' + (sharedSent > 1 ? 's' : '') + ' · '
-            + sharedReceived + ' reçue' + (sharedReceived > 1 ? 's' : '')
-            + '</div>'
-        )
-        + '</div>';
-
-      el.innerHTML = badgesHTML + `
+      el.innerHTML = `
         <div class="stats-section">
           <div class="stats-section-title">Vue d'ensemble</div>
           <div class="stats-grid">
@@ -2843,8 +2776,7 @@ const QUOTES = [
         </div>` : ''}
       `;
     } catch(e) {
-      console.error('loadStatsPage error:', e);
-      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Erreur : ' + e.message + '</div></div>';
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Aucune donnée</div></div>';
     }
   }
 
@@ -3395,14 +3327,13 @@ const QUOTES = [
     const isNewUser = confirm("Le destinataire utilise-t-il déjà Saveurs ?\n\nOK = Oui\nAnnuler = Non, je lui envoie aussi le lien pour s'inscrire");
 
     try {
-      // Créer un document partagé dans Firestore avec un ID court
       const sharedData = {
         name: d.name, category: d.category, type: d.type,
         prepTime: d.prepTime, servings: d.servings, cost: d.cost,
         ingredients: d.ingredients, instructions: d.instructions,
         sharedBy: currentUser.displayName || currentUser.email,
         sharedAt: serverTimestamp(),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 jours
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
       };
       const ref = await addDoc(collection(db, 'shared'), sharedData);
       const shortLink = 'https://saveurs-app.vercel.app?r=' + ref.id;
@@ -4356,8 +4287,9 @@ const QUOTES = [
 
   window.shareApp = async () => {
     const userName = currentUser?.displayName?.split(' ')[0] || 'Frédéric';
+    const firstName = currentUser?.displayName?.split(' ')[0] || '';
     const msg = [
-      "Hello !",
+      "Hello " + firstName + " !",
       "",
       "Je t'invite à utiliser Saveurs, mon appli de recettes familiales !",
       "",
@@ -4525,20 +4457,15 @@ const QUOTES = [
   async function checkSharedRecipeParam() {
     try {
       const params = new URLSearchParams(window.location.search);
-      // Nouveau format court : ?r=firestoreId
       const shortId = params.get('r');
-      // Ancien format base64 : ?recipe=...
       const encoded = params.get('recipe');
-
       let data = null;
 
       if (shortId) {
-        // Charger depuis Firestore
         const snap = await getDoc(doc(db, 'shared', shortId));
         if (!snap.exists()) { showToast('Lien expiré ou invalide'); window.history.replaceState({}, '', '/'); return; }
         data = snap.data();
       } else if (encoded) {
-        // Compatibilité anciens liens
         data = JSON.parse(decodeURIComponent(escape(atob(encoded))));
       }
 
