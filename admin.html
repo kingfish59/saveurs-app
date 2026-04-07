@@ -742,7 +742,7 @@
             </summary>
             <div style="padding:12px 14px;border-top:1px solid rgba(201,168,76,0.06)">
               <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:8px">${m.text}</div>
-              ${m.reply ? `<div style="background:rgba(201,168,76,0.08);border-radius:8px;padding:10px;font-size:12px;color:var(--text3)">↩ ${m.reply}</div>` : ''}
+              ${m.reply ? '<div style="background:rgba(201,168,76,0.08);border-radius:8px;padding:10px;font-size:12px;color:var(--text3)">↩ ' + m.reply + '</div>' : ''}
               <button onclick="openReplyModal('${m.id}','${(m.displayName||'').replace(/'/g,'')}')" class="btn-secondary" style="font-size:11px;padding:5px 10px;margin-top:10px">↩ ${m.reply ? 'Modifier la réponse' : 'Répondre'}</button>
             </div>
           </details>`;
