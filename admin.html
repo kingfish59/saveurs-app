@@ -146,6 +146,9 @@
     .empty { color: var(--text3); font-size: 13px; padding: 16px; text-align: center; font-style: italic; }
 
     /* RESPONSIVE */
+    @media (max-width: 900px) {
+      .hide-mobile { display: none !important; }
+    }
     @media (max-width: 768px) {
       .header { padding: 12px 16px; flex-wrap: wrap; gap: 10px; }
       .header-title { font-size: 18px; }
@@ -408,21 +411,21 @@
       return;
     }
 
-    document.getElementById('users-table').innerHTML = `
-      <table class="table">
-        <thead><tr>
-          <th>Nom</th><th>Email</th><th>Groupe</th><th>UID</th><th>Action</th>
-        </tr></thead>
-        <tbody>
-          ${rows.map(u => `<tr>
-            <td><strong>${u.name}</strong> ${u.blocked ? '<span class="tag-blocked">Bloqué</span>' : ''}</td>
-            <td>${u.email}</td>
-            <td><span class="badge">${u.groupId === u.uid ? 'Personnel' : u.groupId.substring(0, 8) + '...'}</span></td>
-            <td style="font-size:11px;color:var(--text3)">${u.uid.substring(0, 12)}...</td>
-            <td><button onclick="toggleBlock('${u.uid}','${u.name}',${u.blocked})" class="${u.blocked ? 'btn-gold' : 'btn-danger'}" style="padding:4px 10px;font-size:11px">${u.blocked ? '✓ Débloquer' : '🚫 Bloquer'}</button></td>
-          </tr>`).join('')}
-        </tbody>
-      </table>`;
+    document.getElementById('users-table').innerHTML =
+      rows.map(u => `
+        <div style="background:var(--surface);border:1px solid rgba(201,168,76,${u.blocked ? '0.35' : '0.1'});border-radius:12px;padding:12px 14px;margin-bottom:8px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+            <div style="min-width:0;flex:1">
+              <div style="font-size:14px;font-weight:500;color:var(--text)">${u.name} ${u.blocked ? '<span class="tag-blocked">Bloqué</span>' : ''}</div>
+              <div style="font-size:12px;color:var(--text3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.email}</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:3px">${u.groupId === u.uid ? '— Groupe personnel' : '— Groupe partagé'}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+              <button onclick="loadGroupRecipes('${u.groupId || u.uid}','${(u.name||'').replace(/'/g,'')}')" class="btn-secondary" style="font-size:11px;padding:4px 10px;white-space:nowrap">📖 Recettes</button>
+              <button onclick="toggleBlock('${u.uid}','${(u.name||'').replace(/'/g,'')}',${u.blocked})" class="${u.blocked ? 'btn-gold' : 'btn-danger'}" style="font-size:11px;padding:4px 10px;white-space:nowrap">${u.blocked ? '✓ Débloquer' : '🚫 Bloquer'}</button>
+            </div>
+          </div>
+        </div>`).join('') + '';
   }
 
   async function loadGroups() {
@@ -459,7 +462,7 @@
     document.getElementById('groups-table').innerHTML = `
       <table class="table">
         <thead><tr>
-          <th>Code</th><th>Membres</th><th>Recettes</th><th class="hide-mobile">Cuisines</th><th class="hide-mobile">Créé le</th><th class="hide-mobile">ID</th>
+          <th>Code</th><th>Membres</th><th>Recettes</th><th class="hide-mobile">Cuisines</th><th class="hide-mobile">Créé le</th>
         </tr></thead>
         <tbody>
           ${groups.map(g => `<tr style="cursor:pointer" onclick="openGroupModal('${g.id}','${g.code}')" title="Voir les membres et recettes">
@@ -467,8 +470,7 @@
             <td>${g.members}</td>
             <td><span class="badge-green badge" style="cursor:pointer">${g.recipes} 📖</span></td>
             <td>${g.history}</td>
-            <td style="color:var(--text3)">${g.createdAt}</td>
-            <td style="font-size:11px;color:var(--text3)">${g.id.substring(0, 12)}...</td>
+            <td style="color:var(--text3)" class="hide-mobile">${g.createdAt}</td>
           </tr>`).join('')}
         </tbody>
       </table>`;
