@@ -2095,11 +2095,8 @@ const QUOTES = [
         const groupDoc = await getDoc(doc(db, 'groups', userGroupId));
         if (groupDoc.exists()) await showGroupInfo(groupDoc);
       } catch(e) {}
-      // Toujours afficher le bouton créer, mais avec texte adapté
-      if (btnCreate) {
-        btnCreate.style.display = 'block';
-        btnCreate.textContent = 'Créer un nouveau groupe';
-      }
+      // Masquer le bouton créer si déjà dans un groupe
+      if (btnCreate) btnCreate.style.display = 'none';
     } else {
       document.getElementById('current-group-info').innerHTML = '';
       if (btnCreate) {
@@ -4150,6 +4147,7 @@ const QUOTES = [
     { q: "Comment exporter le planning en PDF ?", a: "Dans le semainier → 'PDF'. Le planning est généré en A4. Appuyez sur 'Partager / Enregistrer' pour le sauvegarder." },
     { q: "Comment ajouter l'appli sur mon écran d'accueil ?", a: "Sur iPhone : ouvrez l'appli dans Safari, appuyez sur Partager puis 'Sur l'écran d'accueil'. Sur Android : menu du navigateur → 'Ajouter à l'écran d'accueil'." },
     { q: "Comment partager l'application ?", a: "Allez dans Profil et appuyez sur 'Partager l'application'. Un message avec le lien est prêt à envoyer par SMS ou WhatsApp." },
+    { q: "Puis-je appartenir à plusieurs groupes ?", a: "Non — Saveurs est conçu pour un seul groupe par utilisateur. Cela garantit que votre semainier, vos recettes et votre liste de courses restent cohérents. Si vous rejoignez un nouveau groupe, vous quittez automatiquement le précédent." },
   ];
 
   function renderProfileFAQ() {
