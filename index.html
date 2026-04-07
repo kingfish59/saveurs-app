@@ -2241,14 +2241,22 @@ const QUOTES = [
     if (!currentUser) return;
     try {
       const gid = userGroupId || currentUser.uid;
-      const [recipesSnap, historySnap, sharedSentSnap, recipesAllSnap] = await Promise.all([
+      const [recipesSnap, historySnap] = await Promise.all([
         getDocs(getRecipesRef()),
-        getDocs(collection(db, 'groups', gid, 'history')),
-        getDocs(query(collection(db, 'shared'), where('sharedBy', '==', currentUser.displayName || currentUser.email))),
-        getDocs(getRecipesRef())
+        getDocs(collection(db, 'groups', gid, 'history'))
       ]);
-      const sharedSent = sharedSentSnap.size;
-      const sharedReceived = recipesAllSnap.docs.filter(d => d.data().importedFromShared).length;
+      // Badges : requêtes séparées pour ne pas bloquer si index manquant
+      let sharedSent = 0;
+      let sharedReceived = 0;
+      try {
+        const sharedSentSnap = await getDocs(collection(db, 'shared'));
+        const userLabel = currentUser.displayName || currentUser.email;
+        sharedSent = sharedSentSnap.docs.filter(d => d.data().sharedBy === userLabel).length;
+      } catch(e) {}
+      try {
+        const recipesAllSnap = await getDocs(getRecipesRef());
+        sharedReceived = recipesAllSnap.docs.filter(d => d.data().importedFromShared).length;
+      } catch(e) {}
       document.getElementById('stat-recipes').textContent = recipesSnap.size;
       document.getElementById('stat-cooked').textContent = historySnap.size;
     } catch (e) { console.error('loadStatsPage:', e); }
