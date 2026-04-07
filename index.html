@@ -2013,7 +2013,12 @@ const QUOTES = [
     if (snap.empty) { showToast('Groupe introuvable'); return; }
     const groupDoc = snap.docs[0];
     const newGroupId = groupDoc.id;
-    if (!confirm('Rejoindre ce groupe ? Vos recettes existantes seront migrées vers le groupe.')) return;
+    // Alerte si déjà dans un groupe
+    if (userGroupId) {
+      if (!confirm('Attention — vous appartenez déjà à un groupe. En rejoignant ce nouveau groupe, vous quitterez automatiquement le précédent.\n\nContinuer ?')) return;
+    } else {
+      if (!confirm('Rejoindre ce groupe ? Vos recettes existantes seront migrées vers le groupe.')) return;
+    }
     try {
       const members = groupDoc.data().members || [];
       if (!members.includes(currentUser.uid)) {
