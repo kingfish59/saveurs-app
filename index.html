@@ -669,6 +669,92 @@
       color: var(--gold);
     }
 
+    /* MODE CUISINE */
+    .cook-mode-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 500;
+      display: none;
+      flex-direction: column;
+    }
+    .cook-mode-overlay.open { display: flex; }
+    .cook-mode-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(201,168,76,0.15);
+      flex-shrink: 0;
+    }
+    .cook-mode-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 16px; font-weight: 300;
+      color: var(--gold); letter-spacing: 2px;
+      flex: 1; text-align: center;
+    }
+    .cook-mode-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 28px;
+      text-align: center;
+    }
+    .cook-step-counter {
+      font-size: 11px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--text3);
+      margin-bottom: 32px;
+    }
+    .cook-step-text {
+      font-size: 22px;
+      color: var(--text);
+      line-height: 1.6;
+      font-weight: 300;
+      max-width: 480px;
+    }
+    .cook-mode-nav {
+      display: flex;
+      gap: 16px;
+      padding: 24px 28px calc(env(safe-area-inset-bottom, 16px) + 24px);
+      flex-shrink: 0;
+    }
+    .cook-nav-btn {
+      flex: 1;
+      padding: 16px;
+      border-radius: var(--radius-sm);
+      border: none;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .cook-nav-prev {
+      background: var(--surface);
+      color: var(--text2);
+      border: 1px solid rgba(201,168,76,0.15);
+    }
+    .cook-nav-next {
+      background: var(--gold);
+      color: var(--bg);
+    }
+    .cook-progress {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-top: 32px;
+    }
+    .cook-progress-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--surface2);
+      transition: background 0.2s;
+    }
+    .cook-progress-dot.active { background: var(--gold); }
+
     /* DETAIL RECETTE */
     .detail-overlay {
       position: fixed;
@@ -1566,6 +1652,24 @@
   <div class="detail-content" id="detail-content"></div>
 </div>
 
+<!-- MODE CUISINE -->
+<div class="cook-mode-overlay" id="cook-mode-overlay">
+  <div class="cook-mode-header">
+    <button onclick="closeCookMode()" style="background:none;border:none;color:var(--text3);font-size:14px;cursor:pointer;padding:4px 8px;letter-spacing:1px">✕ Quitter</button>
+    <div class="cook-mode-title" id="cook-mode-recipe-title"></div>
+    <div style="width:80px"></div>
+  </div>
+  <div class="cook-mode-body">
+    <div class="cook-step-counter" id="cook-step-counter"></div>
+    <div class="cook-step-text" id="cook-step-text"></div>
+    <div class="cook-progress" id="cook-progress-dots"></div>
+  </div>
+  <div class="cook-mode-nav">
+    <button class="cook-nav-btn cook-nav-prev" id="cook-btn-prev" onclick="cookNavPrev()">← Précédent</button>
+    <button class="cook-nav-btn cook-nav-next" id="cook-btn-next" onclick="cookNavNext()">Suivant →</button>
+  </div>
+</div>
+
 <!-- MODAL DUPLIQUER SEMAINE -->
 <div class="modal-overlay" id="modal-duplicate">
   <div class="modal">
@@ -2357,6 +2461,9 @@ const QUOTES = [
       ${instructionsHTML}
       <button class="btn-cook" data-id="${id}" onclick="openCookModal(this.dataset.id)">
         J'ai cuisiné cette recette
+      </button>
+      <button onclick="startCookMode('${id}')" style="width:100%;margin-top:10px;padding:14px;background:var(--surface);border:1px solid rgba(201,168,76,0.3);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;cursor:pointer;letter-spacing:1px">
+        👨‍🍳 Mode cuisine
       </button>
     
       <div id="detail-history-section"></div>
@@ -3196,35 +3303,36 @@ const QUOTES = [
   };
 
   // -- PARTAGE RECETTE --
-  window.shareRecipe = async () => {
+  window.shareRecipe = () => {
     if (!currentRecipeId) return;
     const recipe = allRecipes.find(r => r.id === currentRecipeId);
     if (!recipe) return;
     const d = typeof recipe.data === 'function' ? recipe.data() : recipe.data;
-    const text = [
-      d.name,
-      d.category ? 'Categorie : ' + d.category : '',
+    const lines = [
+      (d.name || '').toUpperCase(),
+      d.category ? 'Catégorie : ' + d.category : '',
       d.prepTime ? 'Temps : ' + d.prepTime + ' min' : '',
       d.servings ? 'Pour ' + d.servings + ' personnes' : '',
-      d.ingredients ? '\nIngredients :\n' + d.ingredients : '',
+      d.ingredients ? '\nIngrédients :\n' + d.ingredients : '',
       d.instructions ? '\nInstructions :\n' + d.instructions : '',
-      '\nPartagé depuis Saveurs'
-    ].filter(Boolean).join('\n');
+      '\nPartagé depuis Saveurs — saveurs-app.vercel.app'
+    ].filter(Boolean);
+    const text = lines.join('\n');
 
+    // Appel synchrone immédiat pour conserver le user gesture iOS
     if (navigator.share) {
-      try {
-        await navigator.share({ title: d.name, text });
-      } catch(e) {
-        if (e.name !== 'AbortError') showToast('Erreur partage');
-      }
+      navigator.share({ title: d.name || 'Recette', text })
+        .catch(e => {
+          if (e.name !== 'AbortError') {
+            navigator.clipboard.writeText(text)
+              .then(() => showToast('Recette copiée dans le presse-papiers'))
+              .catch(() => showToast('Partage non disponible'));
+          }
+        });
     } else {
-      // Fallback : copier dans le presse-papiers
-      try {
-        await navigator.clipboard.writeText(text);
-        showToast('Recette copiée dans le presse-papiers');
-      } catch(e) {
-        showToast('Partage non disponible sur ce navigateur');
-      }
+      navigator.clipboard.writeText(text)
+        .then(() => showToast('Recette copiée dans le presse-papiers'))
+        .catch(() => showToast('Partage non disponible sur ce navigateur'));
     }
   };
 
@@ -4269,6 +4377,103 @@ const QUOTES = [
       await updateDoc(doc(db, 'messages', msgId), { replyRead: true });
       await checkUnreadReply();
     } catch(e) { console.error('markReplyRead:', e); }
+  };
+
+  // ===== MODE CUISINE =====
+  let cookSteps = [];
+  let cookCurrentStep = 0;
+  let cookWakeLock = null;
+
+  window.startCookMode = (id) => {
+    const recipe = allRecipes.find(r => r.id === id);
+    if (!recipe) return;
+    const r = typeof recipe.data === 'function' ? recipe.data() : recipe.data;
+
+    // Construire les étapes : ingrédients + instructions
+    cookSteps = [];
+
+    // Étape 0 : ingrédients
+    if (r.ingredients) {
+      const lines = r.ingredients.split('\n').filter(l => l.trim());
+      if (lines.length > 0) {
+        cookSteps.push({ type: 'ingredients', text: lines.map(l => '· ' + capitalizeLine(l)).join('\n') });
+      }
+    }
+
+    // Étapes instructions
+    if (r.instructions) {
+      const steps = r.instructions.split('\n').filter(l => l.trim());
+      steps.forEach(s => cookSteps.push({ type: 'step', text: capitalizeLine(s) }));
+    }
+
+    if (cookSteps.length === 0) {
+      showToast('Aucune étape disponible pour cette recette');
+      return;
+    }
+
+    cookCurrentStep = 0;
+    document.getElementById('cook-mode-recipe-title').textContent = (r.name || '').toUpperCase();
+
+    // WakeLock — empêcher la mise en veille
+    if ('wakeLock' in navigator) {
+      navigator.wakeLock.request('screen').then(lock => {
+        cookWakeLock = lock;
+      }).catch(() => {});
+    }
+
+    renderCookStep();
+    document.getElementById('cook-mode-overlay').classList.add('open');
+  };
+
+  function renderCookStep() {
+    const step = cookSteps[cookCurrentStep];
+    const total = cookSteps.length;
+    const isIngredients = step.type === 'ingredients';
+
+    // Counter
+    const label = isIngredients ? 'Ingrédients' : 'Étape ' + cookCurrentStep + ' / ' + (total - 1);
+    document.getElementById('cook-step-counter').textContent = label;
+
+    // Texte — saut de ligne affiché
+    document.getElementById('cook-step-text').innerHTML = step.text.replace(/\n/g, '<br>');
+
+    // Boutons nav
+    const btnPrev = document.getElementById('cook-btn-prev');
+    const btnNext = document.getElementById('cook-btn-next');
+    btnPrev.style.visibility = cookCurrentStep === 0 ? 'hidden' : 'visible';
+    const isLast = cookCurrentStep === total - 1;
+    btnNext.textContent = isLast ? '✓ Terminé' : 'Suivant →';
+    btnNext.style.background = isLast ? 'var(--green)' : 'var(--gold)';
+
+    // Points de progression
+    const dots = document.getElementById('cook-progress-dots');
+    dots.innerHTML = cookSteps.map((_, i) =>
+      '<div class="cook-progress-dot' + (i === cookCurrentStep ? ' active' : '') + '"></div>'
+    ).join('');
+  }
+
+  window.cookNavNext = () => {
+    if (cookCurrentStep < cookSteps.length - 1) {
+      cookCurrentStep++;
+      renderCookStep();
+    } else {
+      closeCookMode();
+    }
+  };
+
+  window.cookNavPrev = () => {
+    if (cookCurrentStep > 0) {
+      cookCurrentStep--;
+      renderCookStep();
+    }
+  };
+
+  window.closeCookMode = () => {
+    document.getElementById('cook-mode-overlay').classList.remove('open');
+    if (cookWakeLock) {
+      cookWakeLock.release().catch(() => {});
+      cookWakeLock = null;
+    }
   };
 
   window.showToast = (msg) => {
