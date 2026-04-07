@@ -666,7 +666,11 @@
     const recipeName = (currentRecipeData.name || 'cette recette').toUpperCase();
     if (!confirm('Importer "' + recipeName + '" dans votre groupe ?')) return;
     try {
-      const myGroupId = ADMIN_UID;
+      // Récupérer le vrai groupId de l'admin depuis Firestore
+      const userDoc = await getDoc(doc(db, 'users', ADMIN_UID));
+      const myGroupId = userDoc.exists() && userDoc.data().groupId
+        ? userDoc.data().groupId
+        : ADMIN_UID;
       const { sourceGroupId, id, _idx, ...recipeData } = currentRecipeData;
       await addDoc(collection(db, 'groups', myGroupId, 'recipes'), {
         ...recipeData,
