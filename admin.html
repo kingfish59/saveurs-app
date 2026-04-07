@@ -321,7 +321,7 @@
     <div class="modal-title" id="modal-recipe-title"></div>
     <div id="modal-recipe-content"></div>
     <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
-      <button class="btn-gold" id="btn-import-recipe" onclick="importRecipeToMyProfile()">⬇ Importer dans mon profil</button>
+      <button class="btn-gold" id="btn-import-recipe" onclick="importRecipeToMyProfile()" style="flex:1">⬇ Importer dans mon groupe</button>
       <button class="btn-secondary" onclick="closeModal('modal-recipe')">Fermer</button>
     </div>
   </div>
@@ -476,45 +476,36 @@
       </table>`;
   }
 
-  window.loadGroupRecipes = async (groupId, code) => {
+  window.loadGroupRecipes = async (groupId, name) => {
     const el = document.getElementById('recipes-by-group');
-    el.innerHTML = '<div class="loading">Chargement des recettes du groupe ' + code + '...</div>';
+    el.innerHTML = '<div class="loading">Chargement...</div>';
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     try {
       const snap = await getDocs(collection(db, 'groups', groupId, 'recipes'));
       if (snap.docs.length === 0) {
-        el.innerHTML = '<div class="empty">Aucune recette dans ce groupe (' + code + ')</div>';
+        el.innerHTML = '<div class="empty">Aucune recette pour ' + name + '</div>';
         return;
       }
       const recipes = snap.docs.map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
 
-      const typeIcons = { viande: '🥩', poisson: '🐟', 'vegé': '🥦' };
-      const costSymbols = { 1: '€', 2: '€€', 3: '€€€' };
-
       el.innerHTML = `
-        <div style="font-size:12px;color:var(--text3);margin-bottom:10px">
-          Groupe <span style="color:var(--gold)">${code}</span> — ${recipes.length} recette${recipes.length > 1 ? 's' : ''}
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px">
+          <span style="color:var(--gold)">${name}</span> — ${recipes.length} recette${recipes.length > 1 ? 's' : ''}
         </div>
-        <table class="table">
-          <thead><tr>
-            <th>Nom</th><th>Catégorie</th><th>Régime</th><th>Temps</th><th>Coût</th><th>Personnes</th>
-          </tr></thead>
-          <tbody>
-            ${recipes.map(r => `<tr>
-              <td><strong style="color:var(--text)">${(r.name || '—').toUpperCase()}</strong></td>
-              <td>${r.category || '—'}</td>
-              <td>${typeIcons[r.type] || '—'}</td>
-              <td>${r.prepTime ? r.prepTime + ' min' : '—'}</td>
-              <td style="color:var(--gold)">${costSymbols[r.cost] || '—'}</td>
-              <td>${r.servings || '—'}</td>
-            </tr>`).join('')}
-          </tbody>
-        </table>`;
+        <div>
+          ${recipes.map((r, i) => `
+            <div onclick="openRecipeModal(${JSON.stringify(JSON.stringify(r))},'${groupId}')"
+              style="padding:10px 14px;border-bottom:1px solid rgba(201,168,76,0.06);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px">
+              <div style="font-size:13px;color:var(--text);font-weight:500">${(r.name || '—').toUpperCase()}</div>
+              <span style="color:var(--gold);font-size:16px;flex-shrink:0">›</span>
+            </div>`).join('')}
+        </div>`;
     } catch(e) {
       el.innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>';
     }
   };
+
 
   async function loadActivity() {
     // Collecter l'historique de tous les groupes
@@ -661,23 +652,25 @@
         ${r.servings ? '<span class="badge">👥 ' + r.servings + ' pers.</span>' : ''}
         ${r.cost ? '<span class="badge" style="color:var(--gold)">' + costSymbols[r.cost] + '</span>' : ''}
       </div>
-      ${r.ingredients ? '<div style="font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Ingrédients</div><div class="ingredient-list">' + r.ingredients + '</div>' : ''}
-      ${r.instructions ? '<div style="font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin:14px 0 6px">Instructions</div><div class="ingredient-list">' + r.instructions + '</div>' : ''}`;
+      ${r.ingredients ? '<div style="font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Ingrédients</div><div class="ingredient-list" style="white-space:pre-line">' + r.ingredients + '</div>' : ''}
+      ${r.instructions ? '<div style="font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin:14px 0 6px">Instructions</div><div class="ingredient-list" style="white-space:pre-line">' + r.instructions + '</div>' : ''}`;
     openModal('modal-recipe');
   };
 
   // ===== IMPORTER RECETTE =====
   window.importRecipeToMyProfile = async () => {
     if (!currentRecipeData) return;
+    const recipeName = (currentRecipeData.name || 'cette recette').toUpperCase();
+    if (!confirm('Importer "' + recipeName + '" dans votre groupe ?')) return;
     try {
-      const myGroupId = ADMIN_UID; // mon groupe personnel
+      const myGroupId = ADMIN_UID;
       const { sourceGroupId, id, _idx, ...recipeData } = currentRecipeData;
       await addDoc(collection(db, 'groups', myGroupId, 'recipes'), {
         ...recipeData,
         importedFrom: sourceGroupId,
         importedAt: serverTimestamp()
       });
-      showToast('Recette importée dans votre profil !');
+      showToast('✓ ' + recipeName + ' importée dans votre groupe !');
       closeModal('modal-recipe');
     } catch(e) { showToast('Erreur : ' + e.message); }
   };
