@@ -401,10 +401,24 @@
     document.getElementById('stat-users').textContent = snap.docs.length;
     document.getElementById('users-count').textContent = '(' + snap.docs.length + ')';
 
+    const now = new Date();
     const rows = snap.docs.map(d => {
       const u = d.data();
-      return { uid: d.id, name: u.displayName || '—', email: u.email || '—', groupId: u.groupId || '—', blocked: u.blocked || false };
-    }).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+      const lastSeen = u.lastSeen?.toDate?.() || null;
+      const diffMin = lastSeen ? Math.floor((now - lastSeen) / 60000) : null;
+      const online = diffMin !== null && diffMin <= 60;
+      const lastSeenLabel = diffMin === null ? '—'
+        : diffMin < 1 ? 'À l\'instant'
+        : diffMin < 60 ? 'Il y a ' + diffMin + ' min'
+        : diffMin < 1440 ? 'Il y a ' + Math.floor(diffMin/60) + 'h'
+        : lastSeen.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+      return { uid: d.id, name: u.displayName || '—', email: u.email || '—', groupId: u.groupId || '—', blocked: u.blocked || false, online, lastSeenLabel };
+    }).sort((a, b) => {
+      // Trier : en ligne d'abord, puis par nom
+      if (a.online && !b.online) return -1;
+      if (!a.online && b.online) return 1;
+      return a.name.localeCompare(b.name, 'fr');
+    });
 
     if (rows.length === 0) {
       document.getElementById('users-table').innerHTML = '<div class="empty">Aucun utilisateur</div>';
@@ -416,9 +430,13 @@
         <div style="background:var(--surface);border:1px solid rgba(201,168,76,${u.blocked ? '0.35' : '0.1'});border-radius:12px;padding:12px 14px;margin-bottom:8px">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
             <div style="min-width:0;flex:1">
-              <div style="font-size:14px;font-weight:500;color:var(--text)">${u.name} ${u.blocked ? '<span class="tag-blocked">Bloqué</span>' : ''}</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="font-size:14px;font-weight:500;color:var(--text)">${u.name}</div>
+                ${u.online ? '<span style="width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0;display:inline-block"></span>' : ''}
+                ${u.blocked ? '<span class="tag-blocked">Bloqué</span>' : ''}
+              </div>
               <div style="font-size:12px;color:var(--text3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.email}</div>
-              <div style="font-size:11px;color:var(--text3);margin-top:3px">${u.groupId === u.uid ? '— Groupe personnel' : '— Groupe partagé'}</div>
+              <div style="font-size:11px;color:${u.online ? 'var(--green)' : 'var(--text3)'};margin-top:3px">${u.online ? '● En ligne · ' : ''}${u.lastSeenLabel}</div>
             </div>
             <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
               <button onclick="loadGroupRecipes('${u.groupId || u.uid}','${(u.name||'').replace(/'/g,'')}')" class="btn-secondary" style="font-size:11px;padding:4px 10px;white-space:nowrap">📖 Recettes</button>
