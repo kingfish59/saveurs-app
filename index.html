@@ -2245,18 +2245,15 @@ const QUOTES = [
         getDocs(getRecipesRef()),
         getDocs(collection(db, 'groups', gid, 'history'))
       ]);
-      // Badges : requêtes séparées pour ne pas bloquer si index manquant
+      // Badges : calcul à partir des données déjà chargées
+      const userLabel = currentUser.displayName || currentUser.email;
       let sharedSent = 0;
       let sharedReceived = 0;
       try {
-        const sharedSentSnap = await getDocs(collection(db, 'shared'));
-        const userLabel = currentUser.displayName || currentUser.email;
-        sharedSent = sharedSentSnap.docs.filter(d => d.data().sharedBy === userLabel).length;
-      } catch(e) {}
-      try {
-        const recipesAllSnap = await getDocs(getRecipesRef());
-        sharedReceived = recipesAllSnap.docs.filter(d => d.data().importedFromShared).length;
-      } catch(e) {}
+        const sharedSnap = await getDocs(collection(db, 'shared'));
+        sharedSent = sharedSnap.docs.filter(d => d.data().sharedBy === userLabel).length;
+        sharedReceived = recipesSnap.docs.filter(d => d.data().importedFromShared).length;
+      } catch(e) { console.warn('badges error:', e); }
       document.getElementById('stat-recipes').textContent = recipesSnap.size;
       document.getElementById('stat-cooked').textContent = historySnap.size;
     } catch (e) { console.error('loadStatsPage:', e); }
