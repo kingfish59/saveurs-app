@@ -1538,6 +1538,19 @@
       </div>
     </div>
 
+    <div class="form-group">
+      <label class="form-label">Photo de la recette</label>
+      <div id="recipe-photo-preview" style="display:none;margin-bottom:8px">
+        <img id="recipe-photo-img" style="width:100%;border-radius:12px;max-height:200px;object-fit:cover" src="" alt="">
+        <button type="button" onclick="clearRecipePhoto()" style="margin-top:6px;background:none;border:none;color:var(--red);font-size:12px;cursor:pointer">✕ Supprimer</button>
+      </div>
+      <label style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px dashed rgba(201,168,76,0.3);border-radius:var(--radius-sm);padding:14px 16px;cursor:pointer">
+        <span style="font-size:20px">📷</span>
+        <span style="font-size:13px;color:var(--text3)">Ajouter une photo</span>
+        <input type="file" id="recipe-photo-input" accept="image/*" style="display:none" onchange="previewRecipePhoto(this)">
+      </label>
+    </div>
+
     <button class="btn-primary" onclick="saveRecipe()">Enregistrer la recette</button>
     <button class="btn-secondary" onclick="closeModal('modal-add-recipe')">Annuler</button>
   </div>
@@ -1604,6 +1617,19 @@
         <button type="button" class="edit-cost-btn" data-val="2" onclick="setEditCost(2)" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">€€</button>
         <button type="button" class="edit-cost-btn" data-val="3" onclick="setEditCost(3)" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">€€€</button>
       </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Photo de la recette</label>
+      <div id="edit-photo-preview" style="display:none;margin-bottom:8px">
+        <img id="edit-photo-img" style="width:100%;border-radius:12px;max-height:200px;object-fit:cover" src="" alt="">
+        <button type="button" onclick="clearEditPhoto()" style="margin-top:6px;background:none;border:none;color:var(--red);font-size:12px;cursor:pointer">✕ Supprimer</button>
+      </div>
+      <label style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px dashed rgba(201,168,76,0.3);border-radius:var(--radius-sm);padding:14px 16px;cursor:pointer">
+        <span style="font-size:20px">📷</span>
+        <span style="font-size:13px;color:var(--text3)">Modifier la photo</span>
+        <input type="file" id="edit-photo-input" accept="image/*" style="display:none" onchange="previewEditPhoto(this)">
+      </label>
     </div>
 
     <button class="btn-primary" onclick="saveEdit()">Enregistrer les modifications</button>
@@ -1812,18 +1838,6 @@
       <div id="cook-guests-empty" style="font-size:12px;color:var(--text3);display:none">Aucun invité enregistré — ajoutez-en dans Profil → Mes invités</div>
       <input type="hidden" id="cook-guests">
     </div>
-    <div class="form-group">
-      <label class="form-label">Photo du repas</label>
-      <div id="cook-photo-preview" style="display:none;margin-bottom:8px">
-        <img id="cook-photo-img" style="width:100%;border-radius:12px;max-height:200px;object-fit:cover" src="" alt="">
-      </div>
-      <label style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px dashed rgba(201,168,76,0.3);border-radius:var(--radius-sm);padding:14px 16px;cursor:pointer">
-        <span style="font-size:20px">📷</span>
-        <span style="font-size:13px;color:var(--text3)">Ajouter une photo</span>
-        <input type="file" id="cook-photo-input" accept="image/*" style="display:none" onchange="previewCookPhoto(this)">
-      </label>
-    </div>
-
     <button class="btn-primary" onclick="saveCook()">Enregistrer</button>
     <button class="btn-secondary" onclick="closeModal('modal-cook')">Annuler</button>
   </div>
@@ -2477,6 +2491,7 @@ const QUOTES = [
 
     document.getElementById('detail-title').textContent = (r.name || '').toUpperCase();
     document.getElementById('detail-content').innerHTML = `
+      ${r.photoBase64 ? '<img src="' + r.photoBase64 + '" style="width:100%;max-height:260px;object-fit:cover;border-radius:var(--radius-sm);margin-bottom:16px">' : ''}
       <div class="detail-meta">
         ${r.category ? `<span class="detail-badge">${getCategoryEmoji(r.category)} ${r.category}</span>` : ''}
         ${r.prepTime ? `<span class="detail-badge">⏱ ${r.prepTime}</span>` : ''}
@@ -2531,7 +2546,7 @@ const QUOTES = [
                   ${h.guests ? ' · ' + h.guests : ''}
                   ${h.cookedByName ? ' · ' + h.cookedByName.split(' ')[0] : ''}
                 </div>
-                ${h.photoBase64 ? `<img src="${h.photoBase64}" style="width:100%;max-width:260px;border-radius:10px;margin-top:8px;object-fit:cover">` : ''}
+
               </div>
               <button onclick="deleteHistoryEntry('${h.id}', '${recipeId}')" style="background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:4px;opacity:0.7;flex-shrink:0;margin-top:2px" title="Supprimer">🗑</button>
             </div>
@@ -2780,7 +2795,7 @@ const QUOTES = [
                     ${h.convives ? '<span>👥 ' + h.convives + ' convives</span>' : ''}
                     ${h.guests ? '<span>🧑 ' + h.guests + '</span>' : ''}
                   </div>
-                  ${h.photoBase64 ? `<img src="${h.photoBase64}" style="width:100%;max-width:260px;border-radius:10px;margin-top:8px;object-fit:cover">` : ''}
+
                 </div>
                 <button onclick="deleteHistoryEntry('${h.id}', '${h.recipeId}')" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:4px;opacity:0.7;flex-shrink:0" title="Supprimer">🗑</button>
               </div>
@@ -2830,6 +2845,7 @@ const QUOTES = [
         instructions: document.getElementById('r-instructions').value.trim(),
         rating: currentRating,
         cost: currentCost || null,
+        photoBase64: currentRecipePhoto || null,
         createdBy: currentUser.uid,
         createdAt: serverTimestamp()
       });
@@ -2851,6 +2867,8 @@ const QUOTES = [
     setRating(0);
     setCost(0);
     currentCost = 0;
+    currentRecipePhoto = null;
+    document.getElementById('recipe-photo-preview') && (document.getElementById('recipe-photo-preview').style.display = 'none');
     document.getElementById('r-url') && (document.getElementById('r-url').value = '');
     const statusEl = document.getElementById('import-status');
     if (statusEl) statusEl.textContent = '';
@@ -2865,8 +2883,6 @@ const QUOTES = [
     document.getElementById('cook-date').value = today;
     document.getElementById('cook-convives').value = '';
     document.getElementById('cook-guests').value = '';
-    document.getElementById('cook-photo-preview').style.display = 'none';
-    document.getElementById('cook-photo-input').value = '';
     renderGuestButtons();
     openModal('modal-cook');
   };
@@ -2887,6 +2903,14 @@ const QUOTES = [
     document.getElementById('e-instructions').value = r.instructions || '';
     setEditRating(r.rating || 0);
     setEditCost(r.cost || 0);
+    // Photo existante
+    currentEditPhoto = r.photoBase64 || null;
+    if (r.photoBase64) {
+      document.getElementById('edit-photo-img').src = r.photoBase64;
+      document.getElementById('edit-photo-preview').style.display = 'block';
+    } else {
+      document.getElementById('edit-photo-preview').style.display = 'none';
+    }
     openModal('modal-edit-recipe');
   };
 
@@ -2919,6 +2943,7 @@ const QUOTES = [
         instructions: document.getElementById('e-instructions').value.trim(),
         rating: currentEditRating,
         cost: currentEditCost || null,
+        photoBase64: currentEditPhoto || null,
       });
       closeModal('modal-edit-recipe');
       showToast('Recette modifiée !');
@@ -2973,17 +2998,6 @@ const QUOTES = [
     });
   }
 
-  window.previewCookPhoto = (input) => {
-    if (input.files && input.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        document.getElementById('cook-photo-img').src = e.target.result;
-        document.getElementById('cook-photo-preview').style.display = 'block';
-      };
-      reader.readAsDataURL(input.files[0]);
-    }
-  };
-
   window.saveCook = async () => {
     const recipeId = document.getElementById('cook-recipe-id').value;
     const date = document.getElementById('cook-date').value;
@@ -3000,19 +3014,7 @@ const QUOTES = [
       createdAt: serverTimestamp()
     };
 
-    // Photo compressée en base64 si présente
-    const photoInput = document.getElementById('cook-photo-input');
-    if (photoInput.files && photoInput.files[0]) {
-      try {
-        cookData.photoBase64 = await compressImage(photoInput.files[0], 800, 0.7);
-        await saveHistoryEntry(gid, recipeId, cookData);
-      } catch(e) {
-        showToast('Erreur compression photo');
-        console.error(e);
-      }
-    } else {
-      await saveHistoryEntry(gid, recipeId, cookData);
-    }
+    await saveHistoryEntry(gid, recipeId, cookData);
   };
 
   async function saveHistoryEntry(gid, recipeId, cookData) {
@@ -4501,6 +4503,38 @@ const QUOTES = [
     } catch(e) {
       showToast('Erreur : ' + e.message);
     }
+  };
+
+  // ===== PHOTO RECETTE =====
+  let currentRecipePhoto = null; // base64 pour ajout
+  let currentEditPhoto = null;   // base64 pour modif
+
+  window.previewRecipePhoto = async (input) => {
+    if (!input.files || !input.files[0]) return;
+    const base64 = await compressImage(input.files[0], 800, 0.75);
+    currentRecipePhoto = base64;
+    document.getElementById('recipe-photo-img').src = base64;
+    document.getElementById('recipe-photo-preview').style.display = 'block';
+  };
+
+  window.clearRecipePhoto = () => {
+    currentRecipePhoto = null;
+    document.getElementById('recipe-photo-preview').style.display = 'none';
+    document.getElementById('recipe-photo-input').value = '';
+  };
+
+  window.previewEditPhoto = async (input) => {
+    if (!input.files || !input.files[0]) return;
+    const base64 = await compressImage(input.files[0], 800, 0.75);
+    currentEditPhoto = base64;
+    document.getElementById('edit-photo-img').src = base64;
+    document.getElementById('edit-photo-preview').style.display = 'block';
+  };
+
+  window.clearEditPhoto = () => {
+    currentEditPhoto = null;
+    document.getElementById('edit-photo-preview').style.display = 'none';
+    document.getElementById('edit-photo-input').value = '';
   };
 
   // ===== MODE CUISINE =====
