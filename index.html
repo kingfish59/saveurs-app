@@ -884,6 +884,80 @@
     }
     .btn-cook:active { opacity: 0.85; }
 
+    /* CALENDRIER INVITÉS */
+    .guest-cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    .guest-cal-day-label {
+      text-align: center;
+      font-size: 10px;
+      color: var(--text3);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 4px 0;
+    }
+    .guest-cal-cell {
+      aspect-ratio: 1;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: var(--text2);
+      cursor: default;
+      position: relative;
+      background: transparent;
+      border: none;
+    }
+    .guest-cal-cell.has-guests {
+      background: var(--gold-dim);
+      border: 1px solid rgba(201,168,76,0.35);
+      color: var(--gold);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .guest-cal-cell.has-guests:active { opacity: 0.8; }
+    .guest-cal-cell.is-today {
+      border: 1px solid rgba(201,168,76,0.5);
+      color: var(--gold);
+    }
+    .guest-cal-cell.empty { opacity: 0; pointer-events: none; }
+    .guest-cal-dot {
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--gold);
+      position: absolute;
+      bottom: 4px;
+    }
+    .guest-cal-popup {
+      background: var(--surface);
+      border: 1px solid rgba(201,168,76,0.25);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      margin-top: 10px;
+      animation: fadeUp 0.2s ease;
+    }
+    .guest-cal-popup-date {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 16px;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+    .guest-cal-popup-recipe {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .guest-cal-popup-guests {
+      font-size: 13px;
+      color: var(--text2);
+    }
+
     /* STATS */
     .stats-section { margin-bottom: 24px; }
     .stats-section-title {
@@ -2803,8 +2877,32 @@ const QUOTES = [
           `).join('')}
         </div>` : ''}
       `;
+      // Calendrier invités
+      const guestHistory = history.filter(h => h.guests && h.guests.trim());
+      const guestDays = {}; // { 'YYYY-MM-DD': [{recipeId, guests, convives, cookedByName}] }
+      guestHistory.forEach(h => {
+        if (!guestDays[h.date]) guestDays[h.date] = [];
+        guestDays[h.date].push(h);
+      });
+
+      const calHTML = guestHistory.length > 0 ? `
+        <div class="stats-section">
+          <div class="stats-section-title">Calendrier des invités</div>
+          <div id="guest-cal-container"></div>
+          <div id="guest-cal-popup" style="display:none"></div>
+        </div>` : '';
+
+      el.innerHTML = el.innerHTML + calHTML;
+
+      if (guestHistory.length > 0) {
+        window._guestDays = guestDays;
+        window._guestRecipes = recipes;
+        renderGuestCalendar(new Date());
+      }
+
     } catch(e) {
-      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Aucune donnée</div></div>';
+      console.error('loadStatsPage error:', e);
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Erreur : ' + e.message + '</div></div>';
     }
   }
 
@@ -3400,12 +3498,12 @@ const QUOTES = [
       const d = r.data;
       const stars = d.rating ? '★'.repeat(d.rating) : '';
       const cost = d.cost ? '€'.repeat(d.cost) : '';
-      return `<div class="print-recipe">
-        <div class="print-recipe-name">${d.name || ''}</div>
-        <div class="print-recipe-meta">${[d.category, d.prepTime ? d.prepTime + ' min' : '', d.servings ? d.servings + ' pers.' : '', stars, cost].filter(Boolean).join(' · ')}</div>
-        ${d.ingredients ? '<div class="print-section">Ingrédients</div><div class="print-text">' + d.ingredients + '</div>' : ''}
-        ${d.instructions ? '<div class="print-section">Instructions</div><div class="print-text">' + d.instructions + '</div>' : ''}
-      </div>`;
+      return '<div class="print-recipe">'
+        + '<div class="print-recipe-name">' + (d.name || '') + '</div>'
+        + '<div class="print-recipe-meta">' + [d.category, d.prepTime ? d.prepTime + ' min' : '', d.servings ? d.servings + ' pers.' : '', stars, cost].filter(Boolean).join(' · ') + '</div>'
+        + (d.ingredients ? '<div class="print-section">Ingrédients</div><div class="print-text">' + d.ingredients + '</div>' : '')
+        + (d.instructions ? '<div class="print-section">Instructions</div><div class="print-text">' + d.instructions + '</div>' : '')
+        + '</div>';
     }).join('');
     document.body.appendChild(div);
     window.print();
@@ -4449,6 +4547,110 @@ const QUOTES = [
       await updateDoc(doc(db, 'messages', msgId), { replyRead: true });
       await checkUnreadReply();
     } catch(e) { console.error('markReplyRead:', e); }
+  };
+
+  // ===== CALENDRIER INVITÉS =====
+  let guestCalDate = new Date();
+
+  window.renderGuestCalendar = (date) => {
+    guestCalDate = date;
+    const guestDays = window._guestDays || {};
+    const recipes = window._guestRecipes || {};
+    const container = document.getElementById('guest-cal-container');
+    if (!container) return;
+
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+    const today = new Date(); today.setHours(0,0,0,0);
+
+    // Compter les jours avec invités ce mois
+    const daysWithGuests = Object.keys(guestDays).filter(d => {
+      const dd = new Date(d);
+      return dd.getFullYear() === year && dd.getMonth() === month;
+    }).length;
+
+    // Premier jour du mois et nombre de jours
+    const firstDay = new Date(year, month, 1).getDay(); // 0=dim
+    const offset = firstDay === 0 ? 6 : firstDay - 1; // décalage lundi=0
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    // Labels jours
+    const dayLabels = ['L','M','M','J','V','S','D'].map(d =>
+      '<div class="guest-cal-day-label">' + d + '</div>'
+    ).join('');
+
+    // Cellules vides au début
+    let cells = '';
+    for (let i = 0; i < offset; i++) {
+      cells += '<div class="guest-cal-cell empty"></div>';
+    }
+
+    // Jours du mois
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = year + '-' + String(month+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+      const cellDate = new Date(year, month, d);
+      const isToday = cellDate.getTime() === today.getTime();
+      const hasGuests = !!guestDays[dateStr];
+      let cls = 'guest-cal-cell';
+      if (hasGuests) cls += ' has-guests';
+      else if (isToday) cls += ' is-today';
+            const onclick = hasGuests ? 'onclick="showGuestDay(' + JSON.stringify(dateStr) + ')"' : '';
+      cells += '<div class="' + cls + '" ' + onclick + '>'
+        + d
+        + (hasGuests ? '<div class="guest-cal-dot"></div>' : '')
+        + '</div>';
+    }
+
+    container.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+      + '<button onclick="guestCalPrev()" style="background:none;border:none;color:var(--gold);font-size:22px;cursor:pointer;padding:4px 8px">‹</button>'
+      + '<div style="text-align:center">'
+      + '<div style="font-family:Cormorant Garamond,serif;font-size:18px;color:var(--text)">' + MONTHS[month] + ' ' + year + '</div>'
+      + (daysWithGuests > 0 ? '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + daysWithGuests + (daysWithGuests > 1 ? ' soirees avec invites' : ' soiree avec invites') + '</div>' : '<div style="font-size:11px;color:var(--text3);margin-top:2px">Aucun invite ce mois</div>')
+      + '</div>'
+      + '<button onclick="guestCalNext()" style="background:none;border:none;color:var(--gold);font-size:22px;cursor:pointer;padding:4px 8px">›</button>'
+      + '</div>'
+      + '<div class="guest-cal-grid">' + dayLabels + cells + '</div>';
+
+    // Fermer le popup si on change de mois
+    const popup = document.getElementById('guest-cal-popup');
+    if (popup) popup.style.display = 'none';
+  };
+
+  window.guestCalPrev = () => {
+    const d = new Date(guestCalDate.getFullYear(), guestCalDate.getMonth() - 1, 1);
+    renderGuestCalendar(d);
+  };
+  window.guestCalNext = () => {
+    const d = new Date(guestCalDate.getFullYear(), guestCalDate.getMonth() + 1, 1);
+    renderGuestCalendar(d);
+  };
+
+  window.showGuestDay = (dateStr) => {
+    const guestDays = window._guestDays || {};
+    const recipes = window._guestRecipes || {};
+    const entries = guestDays[dateStr] || [];
+    const popup = document.getElementById('guest-cal-popup');
+    if (!popup) return;
+
+    const d = new Date(dateStr);
+    const dateLabel = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+    const items = entries.map(h => {
+      const recipeName = recipes[h.recipeId]?.name || 'Recette inconnue';
+      return '<div class="guest-cal-popup" style="margin-bottom:8px">'
+        + '<div class="guest-cal-popup-date">' + dateLabel + '</div>'
+        + '<div class="guest-cal-popup-recipe">🍽 ' + recipeName.toUpperCase() + '</div>'
+        + (h.convives ? '<div class="guest-cal-popup-guests">👥 ' + h.convives + ' convives</div>' : '')
+        + (h.guests ? '<div class="guest-cal-popup-guests" style="margin-top:4px">🧑 ' + h.guests + '</div>' : '')
+        + (h.cookedByName ? '<div style="font-size:11px;color:var(--text3);margin-top:6px">Cuisine par ' + h.cookedByName.split(' ')[0] + '</div>' : '')
+        + '</div>';
+    }).join('');
+
+    popup.innerHTML = items;
+    popup.style.display = 'block';
+    popup.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
 
   // ===== RECETTE PARTAGÉE PAR LIEN =====
