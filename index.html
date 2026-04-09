@@ -2694,7 +2694,7 @@ const QUOTES = [
           const recipeId = h.recipeId;
           const recipeName = recipeNames[recipeId] || '';
           const hasRecipe = !!(recipeId && recipeName);
-          const clickAttr = hasRecipe ? ' onclick="openRecipe(' + JSON.stringify(recipeId) + ')" style="cursor:pointer"' : '';
+          const clickAttr = hasRecipe ? ' onclick="openRecipe(\'' + recipeId + '\')" style="cursor:pointer"' : '';
           const arrow = hasRecipe ? '<span style="color:var(--gold);font-size:16px">›</span>' : '';
           const convives = h.convives ? '<span>👥 ' + h.convives + ' convives</span>' : '';
           const guests = h.guests ? '<span>🧑 ' + h.guests + '</span>' : '';
