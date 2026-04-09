@@ -4686,7 +4686,11 @@ const QUOTES = [
   }
 
   window.cookNavNext = () => {
-    if (cookCurrentStep < cookSteps.length - 1) {
+    const step = cookSteps[cookCurrentStep];
+    if (step && step.type === 'finale') {
+      // Sur la finale, le bouton Terminer ferme
+      closeCookMode();
+    } else if (cookCurrentStep < cookSteps.length - 1) {
       cookCurrentStep++;
       renderCookStep();
     } else {
