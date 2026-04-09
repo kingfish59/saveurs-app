@@ -4306,22 +4306,14 @@ const QUOTES = [
   });
 
   window.shareApp = async () => {
-    const userName = currentUser?.displayName?.split(' ')[0] || 'Frédéric';
-    const firstName = currentUser?.displayName?.split(' ')[0] || '';
     const msg = [
-      "Hello " + firstName + " !",
+      "Hello !",
       "",
-      "Je t'invite à utiliser Saveurs, mon appli de recettes familiales !",
+      "Tu connais Saveurs ? Recettes préférées, planning de la semaine, liste de courses — tout au même endroit, partagé en famille. Simple et gratuit.",
       "",
-      "🍲 Ouvrir l'appli :",
-      "https://saveurs-app.vercel.app",
+      "👀 Regarde ce qu'on peut faire : https://saveurs-app.vercel.app/saveurs-guide.html",
       "",
-      "📖 Mode d'emploi :",
-      "https://saveurs-app.vercel.app/saveurs-guide.html",
-      "",
-      "Connecte-toi avec ton compte Google et crée ton cahier de recettes avec plein de fonctionnalités sympas. Tu peux même créer un groupe pour les partager avec les autres membres 😉",
-      "",
-      "N'hésite pas à partager l'appli autour de toi !"
+      "🍲 Ouvrir l'appli : https://saveurs-app.vercel.app"
     ].join("\n");
     if (navigator.share) {
       try {
@@ -4334,7 +4326,7 @@ const QUOTES = [
     } else {
       window.location.href = 'sms:?body=' + encodeURIComponent(msg);
     }
-  };
+  };;
   // ===== FAQ PROFIL =====
   const FAQ = [
     { q: "Comment ajouter une recette ?", a: "Appuyez sur + en bas de l'écran. Remplissez les champs ou utilisez un des boutons d'import (URL, photo, PDF)." },
