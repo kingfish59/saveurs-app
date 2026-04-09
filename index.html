@@ -4589,6 +4589,8 @@ const QUOTES = [
       showToast('Aucune étape disponible pour cette recette');
       return;
     }
+    // Ajouter la page finale "Bon appétit !"
+    cookSteps.push({ type: 'finale', text: '' });
 
     cookCurrentStep = 0;
     document.getElementById('cook-mode-recipe-title').textContent = (r.name || '').toUpperCase();
@@ -4608,27 +4610,79 @@ const QUOTES = [
     const step = cookSteps[cookCurrentStep];
     const total = cookSteps.length;
     const isIngredients = step.type === 'ingredients';
+    const isFinale = step.type === 'finale';
+
+    const body = document.getElementById('cook-mode-body');
+    const nav = document.querySelector('.cook-mode-nav');
+
+    if (isFinale) {
+      // Afficher la page Bon appétit
+      body.innerHTML = cookFinaleHTML();
+      nav.style.display = 'none';
+      return;
+    }
+
+    // Restaurer le body si on revenait d'une finale (ne devrait pas arriver)
+    if (!document.getElementById('cook-step-counter')) {
+      body.innerHTML = '<div class="cook-step-counter" id="cook-step-counter"></div>'
+        + '<div class="cook-step-text" id="cook-step-text"></div>'
+        + '<div class="cook-progress" id="cook-progress-dots"></div>';
+    }
+    nav.style.display = 'flex';
 
     // Counter
-    const label = isIngredients ? 'Ingrédients' : 'Étape ' + cookCurrentStep + ' / ' + (total - 1);
+    const label = isIngredients ? 'Ingrédients' : 'Étape ' + cookCurrentStep + ' / ' + (total - 2);
     document.getElementById('cook-step-counter').textContent = label;
 
-    // Texte — saut de ligne affiché
+    // Texte
     document.getElementById('cook-step-text').innerHTML = step.text.replace(/\n/g, '<br>');
 
     // Boutons nav
     const btnPrev = document.getElementById('cook-btn-prev');
     const btnNext = document.getElementById('cook-btn-next');
     btnPrev.style.visibility = cookCurrentStep === 0 ? 'hidden' : 'visible';
-    const isLast = cookCurrentStep === total - 1;
-    btnNext.textContent = isLast ? '✓ Terminé' : 'Suivant →';
-    btnNext.style.background = isLast ? 'var(--green)' : 'var(--gold)';
+    const isPreLast = cookCurrentStep === total - 2; // avant la finale
+    btnNext.textContent = isPreLast ? 'Terminer →' : 'Suivant →';
+    btnNext.style.background = isPreLast ? 'var(--green)' : 'var(--gold)';
 
-    // Points de progression
+    // Points de progression (sans le point de la finale)
     const dots = document.getElementById('cook-progress-dots');
-    dots.innerHTML = cookSteps.map((_, i) =>
+    dots.innerHTML = cookSteps.filter(s => s.type !== 'finale').map((_, i) =>
       '<div class="cook-progress-dot' + (i === cookCurrentStep ? ' active' : '') + '"></div>'
     ).join('');
+  }
+
+  function cookFinaleHTML() {
+    return '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:0">'
+      + '<svg width="140" height="140" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:8px">'
+      + '<g>'
+      + '<path d="M28 22 Q25 17 28 12 Q31 7 28 2" stroke="#c9a84c" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7">'
+      + '<animate attributeName="opacity" values="0;0.7;0" dur="2s" repeatCount="indefinite" begin="0s"/>'
+      + '<animate attributeName="d" values="M28 22 Q25 17 28 12 Q31 7 28 2;M28 22 Q31 17 28 12 Q25 7 28 2;M28 22 Q25 17 28 12 Q31 7 28 2" dur="2s" repeatCount="indefinite" begin="0s"/>'
+      + '</path>'
+      + '<path d="M40 20 Q37 15 40 10 Q43 5 40 0" stroke="#c9a84c" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7">'
+      + '<animate attributeName="opacity" values="0;0.7;0" dur="2s" repeatCount="indefinite" begin="0.4s"/>'
+      + '<animate attributeName="d" values="M40 20 Q37 15 40 10 Q43 5 40 0;M40 20 Q43 15 40 10 Q37 5 40 0;M40 20 Q37 15 40 10 Q43 5 40 0" dur="2s" repeatCount="indefinite" begin="0.4s"/>'
+      + '</path>'
+      + '<path d="M52 22 Q49 17 52 12 Q55 7 52 2" stroke="#c9a84c" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7">'
+      + '<animate attributeName="opacity" values="0;0.7;0" dur="2s" repeatCount="indefinite" begin="0.8s"/>'
+      + '<animate attributeName="d" values="M52 22 Q49 17 52 12 Q55 7 52 2;M52 22 Q55 17 52 12 Q49 7 52 2;M52 22 Q49 17 52 12 Q55 7 52 2" dur="2s" repeatCount="indefinite" begin="0.8s"/>'
+      + '</path>'
+      + '</g>'
+      + '<rect x="18" y="26" width="44" height="7" rx="3.5" fill="#c9a84c"/>'
+      + '<rect x="33" y="22" width="14" height="6" rx="3" fill="#e8c97a"/>'
+      + '<rect x="14" y="33" width="52" height="32" rx="10" fill="#2a2519" stroke="#c9a84c" stroke-width="2"/>'
+      + '<rect x="20" y="38" width="8" height="18" rx="4" fill="#c9a84c" opacity="0.15"/>'
+      + '<rect x="4" y="38" width="12" height="8" rx="4" fill="#2a2519" stroke="#c9a84c" stroke-width="2"/>'
+      + '<rect x="64" y="38" width="12" height="8" rx="4" fill="#2a2519" stroke="#c9a84c" stroke-width="2"/>'
+      + '<rect x="22" y="63" width="36" height="6" rx="3" fill="#c9a84c" opacity="0.5"/>'
+      + '</svg>'
+      + '<div style="width:120px;height:1px;background:rgba(201,168,76,0.2);margin:8px 0"></div>'
+      + '<div style="font-family:Cormorant Garamond,serif;font-size:34px;font-weight:300;color:var(--gold);letter-spacing:3px;margin:8px 0">Bon app\u00e9tit !</div>'
+      + '<div style="font-size:11px;color:var(--text3);letter-spacing:5px;margin-bottom:8px">\u2014 SAVEURS \u2014</div>'
+      + '<div style="width:120px;height:1px;background:rgba(201,168,76,0.2);margin:8px 0"></div>'
+      + '<button onclick="closeCookMode()" style="margin-top:24px;padding:14px 32px;background:var(--gold);border:none;border-radius:var(--radius-sm);color:var(--bg);font-family:DM Sans,sans-serif;font-size:15px;font-weight:500;cursor:pointer;letter-spacing:1px">Terminer</button>'
+      + '</div>';
   }
 
   window.cookNavNext = () => {
@@ -4649,11 +4703,44 @@ const QUOTES = [
 
   window.closeCookMode = () => {
     document.getElementById('cook-mode-overlay').classList.remove('open');
+    // Restaurer le body normal pour la prochaine ouverture
+    const body = document.getElementById('cook-mode-body');
+    if (body && !document.getElementById('cook-step-counter')) {
+      body.innerHTML = '<div class="cook-step-counter" id="cook-step-counter"></div>'
+        + '<div class="cook-step-text" id="cook-step-text"></div>'
+        + '<div class="cook-progress" id="cook-progress-dots"></div>';
+    }
+    const nav = document.querySelector('.cook-mode-nav');
+    if (nav) nav.style.display = 'flex';
     if (cookWakeLock) {
       cookWakeLock.release().catch(() => {});
       cookWakeLock = null;
     }
   };
+
+  // Swipe gauche/droite sur le mode cuisine
+  (function() {
+    let touchStartX = 0;
+    let touchStartY = 0;
+    document.addEventListener('touchstart', e => {
+      const overlay = document.getElementById('cook-mode-overlay');
+      if (overlay && overlay.classList.contains('open')) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+    document.addEventListener('touchend', e => {
+      const overlay = document.getElementById('cook-mode-overlay');
+      if (!overlay || !overlay.classList.contains('open')) return;
+      const step = cookSteps[cookCurrentStep];
+      if (step && step.type === 'finale') return; // pas de swipe sur la finale
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return; // trop court ou vertical
+      if (dx < 0) cookNavNext();  // swipe gauche = suivant
+      else cookNavPrev();          // swipe droite = précédent
+    }, { passive: true });
+  })();
 
   window.showToast = (msg) => {
     const t = document.getElementById('toast');
