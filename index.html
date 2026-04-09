@@ -1701,12 +1701,12 @@
     <div class="cook-mode-title" id="cook-mode-recipe-title"></div>
     <div style="width:80px"></div>
   </div>
-  <div class="cook-mode-body">
+  <div class="cook-mode-body" id="cook-mode-body">
     <div class="cook-step-counter" id="cook-step-counter"></div>
     <div class="cook-step-text" id="cook-step-text"></div>
     <div class="cook-progress" id="cook-progress-dots"></div>
   </div>
-  <div class="cook-mode-nav">
+  <div class="cook-mode-nav" id="cook-mode-nav">
     <button class="cook-nav-btn cook-nav-prev" id="cook-btn-prev" onclick="cookNavPrev()">← Précédent</button>
     <button class="cook-nav-btn cook-nav-next" id="cook-btn-next" onclick="cookNavNext()">Suivant →</button>
   </div>
@@ -4613,7 +4613,7 @@ const QUOTES = [
     const isFinale = step.type === 'finale';
 
     const body = document.getElementById('cook-mode-body');
-    const nav = document.querySelector('.cook-mode-nav');
+    const nav = document.getElementById('cook-mode-nav');
 
     if (isFinale) {
       // Afficher la page Bon appétit
@@ -4714,7 +4714,7 @@ const QUOTES = [
         + '<div class="cook-step-text" id="cook-step-text"></div>'
         + '<div class="cook-progress" id="cook-progress-dots"></div>';
     }
-    const nav = document.querySelector('.cook-mode-nav');
+    const nav = document.getElementById('cook-mode-nav');
     if (nav) nav.style.display = 'flex';
     if (cookWakeLock) {
       cookWakeLock.release().catch(() => {});
