@@ -119,7 +119,7 @@ Si pas de recette trouvee reponds uniquement: {"error":"no_recipe"}`;
         'anthropic-beta': 'pdfs-2024-09-25'
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: pdfBase64 ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001',
         max_tokens: 2000,
         system: SYSTEM,
         messages
