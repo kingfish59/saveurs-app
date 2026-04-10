@@ -19,21 +19,34 @@ export default async function handler(req, res) {
 - ingredients (string, un ingredient par ligne)
 - instructions (string, une etape par ligne)
 
-INSTRUCTIONS ROBOT CUISEUR (Magimix, Thermomix, etc.) — TRES IMPORTANT:
-Les recettes robot contiennent des blocs de parametrage sous differentes formes:
-- Texte du type "EXPERT 05:00 / 1A / 110°C" ou "AUTO 10:00 / 2 / 90°C"
-- Pictogrammes avec duree, vitesse et temperature
-- Encadres avec icone chapeau de cuisinier ou robot
-- Mentions comme "mode Expert", "mode Auto", "vitesse 1A", "vitesse 2", temperatures en degres
+REGLES CRITIQUES POUR LES RECETTES MAGIMIX / ROBOT CUISEUR:
 
-Pour CHAQUE etape contenant des instructions robot, formate-les OBLIGATOIREMENT dans les instructions comme:
-[ROBOT] Xmin / VitesseY / Z°C
-Exemple: si tu lis "EXPERT 05:00 / 1A / 110°C", ecris dans l'etape: [ROBOT] 5min / Vitesse 1A / 110°C
-Exemple: si tu lis "AUTO 10min / 2 / 90°C", ecris: [ROBOT] 10min / Vitesse 2 / 90°C
+Le PDF Magimix presente les etapes en deux colonnes:
+- Colonne gauche: texte de l'etape + liste d'ingredients de cette etape
+- Colonne droite: consigne robot (mode + duree + vitesse + temperature)
 
-Ne jamais ignorer ces instructions robot — elles sont essentielles pour la recette.
+La consigne robot de la colonne droite appartient TOUJOURS a l'etape de la colonne gauche sur la meme ligne.
 
-MULTI-PHOTOS: Si plusieurs photos sont fournies, reconstitue la recette complete dans l'ordre, sans doublons.
+Formats de consignes robot possibles:
+- "EXPERT 05:00 / 1A / 110 C" = mode Expert, 5 minutes, vitesse 1A, 110 degres
+- "MIJOTAGE 10:00 / 1A / 110 C" = mode Mijotage, 10 minutes, vitesse 1A, 110 degres
+- "EXPERT 02:00 / 13 / __ C" = mode Expert, 2 minutes, vitesse 13, sans temperature
+- "AUTO 05:00 / __ / __ C" = mode Auto, 5 minutes
+
+Pour CHAQUE etape ayant une consigne robot, formate l'instruction ainsi:
+Texte de l'etape. [ROBOT mode] Xmin / VitesseY / Z degC
+Si temperature absente: [ROBOT mode] Xmin / VitesseY
+
+Exemple concret:
+Etape 2 texte: "Mettez l'oignon, le gingembre et l'ail dans le bol inox. Lancez le programme."
+Consigne droite: "EXPERT 02:00 / 13 / __ C"
+Resultat attendu: "Mettez l'oignon, le gingembre et l'ail dans le bol inox. Lancez le programme. [ROBOT EXPERT] 2min / Vitesse 13"
+
+Etape 3 texte: "Ajoutez le beurre et l'huile d'olive, puis lancez le programme."
+Consigne droite: "EXPERT 05:00 / 1A / 110 C"
+Resultat attendu: "Ajoutez le beurre et l'huile d'olive. [ROBOT EXPERT] 5min / Vitesse 1A / 110 degC"
+
+NE JAMAIS omettre les consignes robot. Elles sont essentielles pour utiliser le robot correctement.
 
 Si pas de recette trouvee reponds uniquement: {"error":"no_recipe"}`;
 
@@ -44,7 +57,7 @@ Si pas de recette trouvee reponds uniquement: {"error":"no_recipe"}`;
       role: 'user',
       content: [
         { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
-        { type: 'text', text: 'Extrais la recette complete de ce PDF. Sois particulierement attentif aux instructions robot cuiseur (duree, vitesse, temperature) et formate-les avec le prefixe [ROBOT].' }
+        { type: 'text', text: 'Extrais la recette complete. IMPORTANT: associe chaque consigne robot (colonne droite: EXPERT/MIJOTAGE avec duree/vitesse/temperature) a l\'etape correspondante (colonne gauche) et inclus-la dans les instructions avec le prefixe [ROBOT MODE].' }
       ]
     }];
   } else if (imagesBase64 && Array.isArray(imagesBase64) && imagesBase64.length > 0) {
@@ -57,7 +70,7 @@ Si pas de recette trouvee reponds uniquement: {"error":"no_recipe"}`;
       role: 'user',
       content: [
         ...imageContents,
-        { type: 'text', text: 'Ces ' + imagesBase64.length + ' photos montrent une meme recette dans l\'ordre. Reconstitue la recette complete sans doublons. Sois particulierement attentif aux blocs de parametrage robot (icone chapeau orange, duree/vitesse/temperature) et formate-les avec le prefixe [ROBOT].' }
+        { type: 'text', text: 'Ces ' + imagesBase64.length + ' photos montrent une meme recette dans l\'ordre. Reconstitue la recette complete sans doublons. Associe chaque consigne robot (icone chapeau orange avec duree/vitesse/temperature) a l\'etape correspondante avec le prefixe [ROBOT MODE].' }
       ]
     }];
   } else if (imageBase64) {
@@ -67,7 +80,7 @@ Si pas de recette trouvee reponds uniquement: {"error":"no_recipe"}`;
       role: 'user',
       content: [
         { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } },
-        { type: 'text', text: 'Extrais la recette presente sur cette photo. Sois particulierement attentif aux blocs de parametrage robot (icone chapeau orange, duree/vitesse/temperature) et formate-les avec le prefixe [ROBOT].' }
+        { type: 'text', text: 'Extrais la recette. Associe chaque consigne robot (icone chapeau orange avec duree/vitesse/temperature) a l\'etape correspondante avec le prefixe [ROBOT MODE].' }
       ]
     }];
   } else if (url) {
