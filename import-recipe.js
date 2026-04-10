@@ -19,10 +19,21 @@ export default async function handler(req, res) {
 - ingredients (string, un ingredient par ligne)
 - instructions (string, une etape par ligne)
 
-IMPORTANT pour les recettes Magimix/robot cuiseur:
-- Si tu detectes des blocs de parametrage robot (icone chapeau de cuisinier orange, vitesse, temperature, duree), formate-les dans les instructions comme suit: [ROBOT] Xmin / VitesseY / Z°C
-- Exemple: si tu vois "EXPERT 05:00 / 1A / 110°C", ecris dans l'etape concernee: [ROBOT] 5min / Vitesse 1A / 110°C
-- Si plusieurs photos sont fournies, reconstitue la recette complete dans l'ordre, sans doublons
+INSTRUCTIONS ROBOT CUISEUR (Magimix, Thermomix, etc.) — TRES IMPORTANT:
+Les recettes robot contiennent des blocs de parametrage sous differentes formes:
+- Texte du type "EXPERT 05:00 / 1A / 110°C" ou "AUTO 10:00 / 2 / 90°C"
+- Pictogrammes avec duree, vitesse et temperature
+- Encadres avec icone chapeau de cuisinier ou robot
+- Mentions comme "mode Expert", "mode Auto", "vitesse 1A", "vitesse 2", temperatures en degres
+
+Pour CHAQUE etape contenant des instructions robot, formate-les OBLIGATOIREMENT dans les instructions comme:
+[ROBOT] Xmin / VitesseY / Z°C
+Exemple: si tu lis "EXPERT 05:00 / 1A / 110°C", ecris dans l'etape: [ROBOT] 5min / Vitesse 1A / 110°C
+Exemple: si tu lis "AUTO 10min / 2 / 90°C", ecris: [ROBOT] 10min / Vitesse 2 / 90°C
+
+Ne jamais ignorer ces instructions robot — elles sont essentielles pour la recette.
+
+MULTI-PHOTOS: Si plusieurs photos sont fournies, reconstitue la recette complete dans l'ordre, sans doublons.
 
 Si pas de recette trouvee reponds uniquement: {"error":"no_recipe"}`;
 
@@ -33,12 +44,11 @@ Si pas de recette trouvee reponds uniquement: {"error":"no_recipe"}`;
       role: 'user',
       content: [
         { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
-        { type: 'text', text: 'Extrais la recette presente dans ce PDF.' }
+        { type: 'text', text: 'Extrais la recette complete de ce PDF. Sois particulierement attentif aux instructions robot cuiseur (duree, vitesse, temperature) et formate-les avec le prefixe [ROBOT].' }
       ]
     }];
   } else if (imagesBase64 && Array.isArray(imagesBase64) && imagesBase64.length > 0) {
-    // Mode multi-photos
-    const imageContents = imagesBase64.map((img, i) => {
+    const imageContents = imagesBase64.map((img) => {
       const base64Data = img.replace(/^data:image\/\w+;base64,/, '');
       const mediaType = img.match(/^data:(image\/\w+);base64,/)?.[1] || 'image/jpeg';
       return { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } };
@@ -47,18 +57,17 @@ Si pas de recette trouvee reponds uniquement: {"error":"no_recipe"}`;
       role: 'user',
       content: [
         ...imageContents,
-        { type: 'text', text: 'Ces ' + imagesBase64.length + ' photos montrent une meme recette dans l\'ordre (captures d\'ecran successives). Reconstitue la recette complete sans doublons.' }
+        { type: 'text', text: 'Ces ' + imagesBase64.length + ' photos montrent une meme recette dans l\'ordre. Reconstitue la recette complete sans doublons. Sois particulierement attentif aux blocs de parametrage robot (icone chapeau orange, duree/vitesse/temperature) et formate-les avec le prefixe [ROBOT].' }
       ]
     }];
   } else if (imageBase64) {
-    // Mode image unique (compatibilite)
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
     const mediaType = imageBase64.match(/^data:(image\/\w+);base64,/)?.[1] || 'image/jpeg';
     messages = [{
       role: 'user',
       content: [
         { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } },
-        { type: 'text', text: 'Extrais la recette presente sur cette photo.' }
+        { type: 'text', text: 'Extrais la recette presente sur cette photo. Sois particulierement attentif aux blocs de parametrage robot (icone chapeau orange, duree/vitesse/temperature) et formate-les avec le prefixe [ROBOT].' }
       ]
     }];
   } else if (url) {
