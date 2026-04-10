@@ -1378,6 +1378,23 @@
         </div>
       </div>
 
+      <!-- Jour de début semainier -->
+        <div style="background:var(--surface);border:1px solid rgba(201,168,76,0.12);border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:14px;color:var(--text)">Début de semaine</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px">Premier jour du semainier</div>
+          </div>
+          <select id="week-start-day" onchange="setWeekStartDay(this.value)" style="background:var(--surface2);border:1px solid rgba(201,168,76,0.3);border-radius:8px;padding:6px 10px;color:var(--gold);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;outline:none">
+            <option value="1">Lundi</option>
+            <option value="2">Mardi</option>
+            <option value="3">Mercredi</option>
+            <option value="4">Jeudi</option>
+            <option value="5">Vendredi</option>
+            <option value="6">Samedi</option>
+            <option value="0">Dimanche</option>
+          </select>
+        </div>
+
       <!-- FAQ -->
       <div style="margin-top:24px;padding-top:24px;border-top:1px solid rgba(201,168,76,0.08)">
         <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold);margin-bottom:4px">Aide</div>
@@ -2022,6 +2039,7 @@ const QUOTES = [
         renderProfileFAQ();
         // Détecter une recette partagée via URL
         checkSharedRecipeParam();
+        applyWeekStartDay();
         checkUnreadReply();
         setMsgType('suggestion');
       } else {
@@ -3547,20 +3565,35 @@ const QUOTES = [
   };
 
   // -- SEMAINIER --
-  const DAYS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+  // DAYS réordonné selon weekStartDay
+  const ALL_DAYS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+  function getOrderedDays() {
+    const start = weekStartDay; // 0=dim, 1=lun...
+    const result = [];
+    for (let i = 0; i < 7; i++) {
+      result.push(ALL_DAYS[(start + i) % 7]);
+    }
+    return result;
+  }
+  let DAYS = getOrderedDays();
   const MEALS = [{ key: 'midi', label: 'Midi' }, { key: 'soir', label: 'Soir' }, { key: 'dessert', label: 'Dessert', optional: true }];
   let currentWeekOffset = 0; // 0 = semaine courante
   let weekPlan = {}; // { 'YYYY-WW': { 'lundi-midi': { type, recipeId, name, meta }, ... } }
   let shoppingChecked = {}; // { 'lundi-midi': true }
 
+  // Jour de début de semaine (0=dim, 1=lun...6=sam) — sauvegardé en localStorage
+  let weekStartDay = parseInt(localStorage.getItem('saveurs-week-start') || '1');
+
   function getWeekStart(offset) {
     const now = new Date();
     const day = now.getDay(); // 0=dim, 1=lun...
-    const diff = (day === 0 ? -6 : 1 - day);
-    const monday = new Date(now);
-    monday.setDate(now.getDate() + diff + offset * 7);
-    monday.setHours(0,0,0,0);
-    return monday;
+    // Calculer le décalage vers le jour de début configuré
+    let diff = weekStartDay - day;
+    if (diff > 0) diff -= 7; // revenir en arrière si le jour est dans le futur
+    const start = new Date(now);
+    start.setDate(now.getDate() + diff + offset * 7);
+    start.setHours(0,0,0,0);
+    return start;
   }
 
   function getWeekKey(offset) {
@@ -4329,8 +4362,8 @@ const QUOTES = [
       renderProfileFAQ();
       checkUnreadReply();
       setMsgType('suggestion');
-      // Sync état du toggle thème
       applyTheme(localStorage.getItem('saveurs-theme') || 'dark');
+      applyWeekStartDay();
     }
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -4452,6 +4485,26 @@ const QUOTES = [
       if (label) label.textContent = 'Mode sombre';
     }
     localStorage.setItem('saveurs-theme', theme);
+  }
+
+  window.setWeekStartDay = (val) => {
+    weekStartDay = parseInt(val);
+    localStorage.setItem('saveurs-week-start', val);
+    DAYS = getOrderedDays();
+    // Recharger le semainier si on est dessus
+    const semainier = document.getElementById('page-semainier');
+    if (semainier && semainier.classList.contains('active')) {
+      const wkey = getWeekKey(currentWeekOffset);
+      loadWeekPlan(wkey).then(() => renderWeekGrid());
+    }
+  };
+
+  function applyWeekStartDay() {
+    const saved = localStorage.getItem('saveurs-week-start') || '1';
+    weekStartDay = parseInt(saved);
+    DAYS = getOrderedDays();
+    const select = document.getElementById('week-start-day');
+    if (select) select.value = saved;
   }
 
   window.toggleTheme = () => {
