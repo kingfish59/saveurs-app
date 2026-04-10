@@ -1,3 +1,72 @@
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+
+async function extractMagimixInstructions(pdfBuffer) {
+  try {
+    const uint8Array = new Uint8Array(pdfBuffer.buffer || pdfBuffer, pdfBuffer.byteOffset || 0, pdfBuffer.byteLength);
+    const doc = await getDocument({ data: uint8Array, useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true, verbosity: 0 }).promise;
+    const page = await doc.getPage(1);
+    const tc = await page.getTextContent();
+
+    const items = tc.items
+      .filter(i => i.str.trim())
+      .map(i => ({ x: Math.round(i.transform[4]), y: Math.round(i.transform[5]), t: i.str.trim() }));
+
+    const ROBOT_MODES = ['EXPERT', 'MIJOTAGE', 'AUTO', 'TURBO'];
+
+    // Numéros d'étapes (x ~533, chiffre seul)
+    const stepNums = items.filter(i => i.x >= 520 && i.x <= 550 && /^\d+$/.test(i.t));
+    // Textes d'étapes (x ~308, phrase longue)
+    const stepTexts = items.filter(i => i.x >= 300 && i.x <= 320 && i.t.length > 20);
+    // Modes robot (x >= 590)
+    const robotModes = items.filter(i => i.x >= 590 && ROBOT_MODES.includes(i.t));
+    // Paramètres robot (contient HH:MM)
+    const robotParams = items.filter(i => i.x >= 580 && /\d+:\d+/.test(i.t));
+
+    // Associer chaque mode robot à son étape
+    const robotByStep = {};
+    robotModes.forEach(mode => {
+      const params = robotParams.find(p => Math.abs(p.y - mode.y) <= 15);
+      const stepNum = stepNums
+        .filter(s => s.y > mode.y && s.y - mode.y < 90)
+        .sort((a, b) => a.y - b.y)[0];
+
+      if (stepNum && params) {
+        const parts = params.t.split('/').map(p => p.trim());
+        const timeMatch = params.t.match(/(\d+):(\d+)/);
+        if (!timeMatch) return;
+        const totalSec = parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]);
+        const timeStr = totalSec >= 60 ? (totalSec / 60) + 'min' : totalSec + 'sec';
+        const vitesse = parts[1] || '';
+        const temp = parts[2] || '';
+        let robot = `[ROBOT ${mode.t}] ${timeStr}`;
+        if (vitesse && !vitesse.includes('__')) robot += ` / Vitesse ${vitesse}`;
+        if (temp && !temp.includes('__')) robot += ` / ${temp}`;
+        robotByStep[parseInt(stepNum.t)] = robot;
+      }
+    });
+
+    // Associer texte au numéro d'étape
+    const instructions = stepNums
+      .map(sn => {
+        const num = parseInt(sn.t);
+        const text = stepTexts
+          .filter(st => sn.y - st.y > 0 && sn.y - st.y < 280)
+          .sort((a, b) => b.y - a.y)[0];
+        let line = text ? text.t : '';
+        if (robotByStep[num]) line += ' ' + robotByStep[num];
+        return { num, line };
+      })
+      .sort((a, b) => a.num - b.num)
+      .map(s => s.line)
+      .filter(Boolean)
+      .join('\n');
+
+    return instructions || null;
+  } catch(e) {
+    return null;
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -11,7 +80,7 @@ export default async function handler(req, res) {
 
   const { url, imageBase64, imagesBase64, pdfBase64 } = req.body || {};
 
-  const SYSTEM_PDF = `Tu es un extracteur de recettes de cuisine pour robot Magimix. Reponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, avec ces champs:
+  const SYSTEM = `Tu es un extracteur de recettes de cuisine. Extrais la recette et reponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, avec exactement ces champs:
 - name (string)
 - category (string parmi: Entree, Plat, Dessert, Aperitif, Petit-dejeuner, Autre)
 - prepTime (nombre entier de minutes ou null)
@@ -19,55 +88,35 @@ export default async function handler(req, res) {
 - ingredients (string, un ingredient par ligne)
 - instructions (string, une etape par ligne)
 
-STRUCTURE SPECIFIQUE DES PDF MAGIMIX:
-Le PDF contient deux blocs distincts:
-BLOC A (en haut): les etapes numerotees 1, 2, 3... avec leur texte mais SANS les consignes robot
-BLOC B (en bas): pour chaque etape (sauf etape 1), les ingredients de cette etape SUIVIS de la consigne robot (EXPERT/MIJOTAGE + duree/vitesse/temperature)
-
-BLOC B exemple:
-"1 oignon / 20g gingembre / 2 gousses d ail / EXPERT / 02:00 / 13 / __ C" -> correspond a l etape 2
-"30g beurre / 1 c.c. huile / EXPERT / 05:00 / 1A / 110 C" -> correspond a l etape 3
-"1 tomate / 30g concentre tomate / MIJOTAGE / 10:00 / 1A / 110 C" -> correspond a l etape 4
-"20g noix cajou / 200g creme / EXPERT / 00:30 / 5 / __ C" -> correspond a l etape 5
-"EXPERT / 10:00 / 1A / 110 C" -> correspond a l etape 6
-
-Tu dois FUSIONNER les deux blocs: prendre le texte de chaque etape du BLOC A et lui ajouter la consigne robot du BLOC B correspondant.
-
-Resultat attendu pour les instructions:
-"Coupez le poulet... Laissez mariner 60 minutes."
-"Mettez l oignon, le gingembre et l ail dans le bol inox. [ROBOT EXPERT] 2min / Vitesse 13"
-"Ajoutez le beurre et l huile. [ROBOT EXPERT] 5min / Vitesse 1A / 110 C"
-"Deposez la tomate et le concentre. [ROBOT MIJOTAGE] 10min / Vitesse 1A / 110 C"
-"Ajoutez les noix de cajou et la creme. [ROBOT EXPERT] 30sec / Vitesse 5"
-"Ajoutez le poulet marine. [ROBOT EXPERT] 10min / Vitesse 1A / 110 C"
-
-Si pas de recette trouvee: {"error":"no_recipe"}`;
-
-  const SYSTEM_OTHER = `Tu es un extracteur de recettes de cuisine. Extrais la recette et reponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, avec exactement ces champs:
-- name (string)
-- category (string parmi: Entree, Plat, Dessert, Aperitif, Petit-dejeuner, Autre)
-- prepTime (nombre entier de minutes ou null)
-- servings (nombre entier ou null)
-- ingredients (string, un ingredient par ligne)
-- instructions (string, une etape par ligne)
-
-Pour les recettes robot (Magimix, Thermomix), inclus les consignes robot dans chaque etape sous la forme [ROBOT MODE] Xmin / VitesseY / Z C.
+Si les instructions te sont fournies pre-formatees avec [ROBOT MODE], conserve-les exactement telles quelles.
 Si pas de recette trouvee: {"error":"no_recipe"}`;
 
   let messages;
-  let model = 'claude-haiku-4-5-20251001';
-  let system = SYSTEM_OTHER;
 
   if (pdfBase64) {
-    model = 'claude-sonnet-4-6';
-    system = SYSTEM_PDF;
-    messages = [{
-      role: 'user',
-      content: [
-        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
-        { type: 'text', text: 'Extrais la recette. FUSIONNE le BLOC A (etapes texte) avec le BLOC B (consignes robot en bas) pour inclure les parametres robot dans chaque etape.' }
-      ]
-    }];
+    // Extraire les instructions Magimix avec le parser structurel
+    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+    const magimixInstructions = await extractMagimixInstructions(pdfBuffer);
+
+    if (magimixInstructions) {
+      // On a les instructions avec consignes robot — envoyer le texte brut + instructions pré-parsées
+      messages = [{
+        role: 'user',
+        content: [
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
+          { type: 'text', text: `Extrais la recette (nom, categorie, temps, servings, ingredients). Pour les instructions, utilise EXACTEMENT ceci:\n\n${magimixInstructions}` }
+        ]
+      }];
+    } else {
+      // Fallback : mode standard sans parser
+      messages = [{
+        role: 'user',
+        content: [
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
+          { type: 'text', text: 'Extrais la recette complete de ce PDF.' }
+        ]
+      }];
+    }
   } else if (imagesBase64 && Array.isArray(imagesBase64) && imagesBase64.length > 0) {
     const imageContents = imagesBase64.map((img) => {
       const base64Data = img.replace(/^data:image\/\w+;base64,/, '');
@@ -78,7 +127,7 @@ Si pas de recette trouvee: {"error":"no_recipe"}`;
       role: 'user',
       content: [
         ...imageContents,
-        { type: 'text', text: 'Ces ' + imagesBase64.length + ' photos montrent une meme recette dans l\'ordre. Reconstitue la recette complete sans doublons. Inclus les consignes robot avec [ROBOT MODE].' }
+        { type: 'text', text: 'Ces ' + imagesBase64.length + ' photos montrent une meme recette dans l\'ordre. Reconstitue la recette complete sans doublons.' }
       ]
     }];
   } else if (imageBase64) {
@@ -88,7 +137,7 @@ Si pas de recette trouvee: {"error":"no_recipe"}`;
       role: 'user',
       content: [
         { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } },
-        { type: 'text', text: 'Extrais la recette. Inclus les consignes robot avec [ROBOT MODE].' }
+        { type: 'text', text: 'Extrais la recette presente sur cette photo.' }
       ]
     }];
   } else if (url) {
@@ -109,10 +158,7 @@ Si pas de recette trouvee: {"error":"no_recipe"}`;
     } catch (e) {
       return res.status(200).json({ error: 'fetch_failed', detail: e.message });
     }
-    messages = [{
-      role: 'user',
-      content: 'Extrais la recette depuis ce texte:\n\n' + pageContent
-    }];
+    messages = [{ role: 'user', content: 'Extrais la recette depuis ce texte:\n\n' + pageContent }];
   } else {
     return res.status(400).json({ error: 'Missing url, imageBase64, imagesBase64 or pdfBase64' });
   }
@@ -126,7 +172,12 @@ Si pas de recette trouvee: {"error":"no_recipe"}`;
         'anthropic-version': '2023-06-01',
         'anthropic-beta': 'pdfs-2024-09-25'
       },
-      body: JSON.stringify({ model, max_tokens: 2000, system, messages })
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2000,
+        system: SYSTEM,
+        messages
+      })
     });
 
     const data = await apiRes.json();
