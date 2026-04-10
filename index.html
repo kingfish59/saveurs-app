@@ -3597,9 +3597,15 @@ const QUOTES = [
   }
 
   function getWeekKey(offset) {
-    const d = getWeekStart(offset);
-    const year = d.getFullYear();
-    const week = Math.ceil(((d - new Date(year,0,1)) / 86400000 + new Date(year,0,1).getDay() + 1) / 7);
+    // Toujours basé sur le LUNDI ISO pour des clés Firestore stables
+    const now = new Date();
+    const day = now.getDay();
+    const diffToMonday = (day === 0 ? -6 : 1 - day);
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diffToMonday + offset * 7);
+    monday.setHours(0,0,0,0);
+    const year = monday.getFullYear();
+    const week = Math.ceil(((monday - new Date(year,0,1)) / 86400000 + new Date(year,0,1).getDay() + 1) / 7);
     return year + '-W' + String(week).padStart(2,'0');
   }
 
