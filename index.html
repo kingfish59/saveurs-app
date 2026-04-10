@@ -1710,11 +1710,11 @@
       <button class="detail-back" onclick="closeDetail()">‹</button>
       <div class="detail-title" id="detail-title"></div>
     </div>
-    <div class="detail-header-row2">
-      <button class="detail-edit-btn" onclick="openEditModal()" title="Modifier">✎</button>
-      <button onclick="exportSinglePDF()" title="Imprimer" style="background:none;border:none;cursor:pointer;padding:8px;line-height:1;opacity:0.7;transition:opacity 0.2s;color:var(--gold);display:flex;align-items:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><path d="M6 14h12v8H6z"/></svg></button>
-      <button onclick="shareLinkRecipe()" title="Envoyer par lien" style="background:none;border:none;cursor:pointer;padding:8px;line-height:1;opacity:0.7;transition:opacity 0.2s;color:var(--gold);display:flex;align-items:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
-      <button class="detail-delete-btn" onclick="confirmDelete()" title="Supprimer">🗑</button>
+    <div style="display:flex;gap:8px">
+      <button onclick="openEditModal()" style="flex:1;padding:9px 6px;background:var(--surface);border:1px solid rgba(201,168,76,0.25);border-radius:10px;color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;letter-spacing:0.5px">✎ Modifier</button>
+      <button onclick="exportSinglePDF()" style="flex:1;padding:9px 6px;background:var(--surface);border:1px solid rgba(201,168,76,0.25);border-radius:10px;color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;letter-spacing:0.5px">🖨 Imprimer</button>
+      <button onclick="shareLinkRecipe()" style="flex:1;padding:9px 6px;background:var(--surface);border:1px solid rgba(201,168,76,0.25);border-radius:10px;color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;letter-spacing:0.5px">↗ Partager</button>
+      <button onclick="confirmDelete()" style="flex:1;padding:9px 6px;background:var(--surface);border:1px solid rgba(201,76,76,0.25);border-radius:10px;color:var(--red);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;letter-spacing:0.5px">🗑 Suppr.</button>
     </div>
   </div>
   <div class="detail-content" id="detail-content"></div>
@@ -3446,8 +3446,11 @@ const QUOTES = [
       ${d.instructions ? '<div class="print-section">Instructions</div><div class="print-text">' + d.instructions + '</div>' : ''}
     </div>`;
     document.body.appendChild(div);
-    window.print();
-    setTimeout(() => div.remove(), 1000);
+    // Petit délai pour que le DOM soit prêt avant l'impression
+    requestAnimationFrame(() => {
+      window.print();
+      setTimeout(() => div.remove(), 2000);
+    });
   };
 
   // -- PARTAGE RECETTE --
