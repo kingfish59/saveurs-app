@@ -11,7 +11,7 @@ export default async function handler(req, res) {
 
   const { url, imageBase64, imagesBase64, pdfBase64 } = req.body || {};
 
-  const SYSTEM = `Tu es un extracteur de recettes de cuisine. Extrais la recette et reponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, avec exactement ces champs:
+  const SYSTEM_PDF = `Tu es un extracteur de recettes de cuisine pour robot Magimix. Reponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, avec ces champs:
 - name (string)
 - category (string parmi: Entree, Plat, Dessert, Aperitif, Petit-dejeuner, Autre)
 - prepTime (nombre entier de minutes ou null)
@@ -19,45 +19,53 @@ export default async function handler(req, res) {
 - ingredients (string, un ingredient par ligne)
 - instructions (string, une etape par ligne)
 
-REGLES CRITIQUES POUR LES RECETTES MAGIMIX / ROBOT CUISEUR:
+STRUCTURE SPECIFIQUE DES PDF MAGIMIX:
+Le PDF contient deux blocs distincts:
+BLOC A (en haut): les etapes numerotees 1, 2, 3... avec leur texte mais SANS les consignes robot
+BLOC B (en bas): pour chaque etape (sauf etape 1), les ingredients de cette etape SUIVIS de la consigne robot (EXPERT/MIJOTAGE + duree/vitesse/temperature)
 
-Le PDF Magimix presente les etapes en deux colonnes:
-- Colonne gauche: texte de l'etape + liste d'ingredients de cette etape
-- Colonne droite: consigne robot (mode + duree + vitesse + temperature)
+BLOC B exemple:
+"1 oignon / 20g gingembre / 2 gousses d ail / EXPERT / 02:00 / 13 / __ C" -> correspond a l etape 2
+"30g beurre / 1 c.c. huile / EXPERT / 05:00 / 1A / 110 C" -> correspond a l etape 3
+"1 tomate / 30g concentre tomate / MIJOTAGE / 10:00 / 1A / 110 C" -> correspond a l etape 4
+"20g noix cajou / 200g creme / EXPERT / 00:30 / 5 / __ C" -> correspond a l etape 5
+"EXPERT / 10:00 / 1A / 110 C" -> correspond a l etape 6
 
-La consigne robot de la colonne droite appartient TOUJOURS a l'etape de la colonne gauche sur la meme ligne.
+Tu dois FUSIONNER les deux blocs: prendre le texte de chaque etape du BLOC A et lui ajouter la consigne robot du BLOC B correspondant.
 
-Formats de consignes robot possibles:
-- "EXPERT 05:00 / 1A / 110 C" = mode Expert, 5 minutes, vitesse 1A, 110 degres
-- "MIJOTAGE 10:00 / 1A / 110 C" = mode Mijotage, 10 minutes, vitesse 1A, 110 degres
-- "EXPERT 02:00 / 13 / __ C" = mode Expert, 2 minutes, vitesse 13, sans temperature
-- "AUTO 05:00 / __ / __ C" = mode Auto, 5 minutes
+Resultat attendu pour les instructions:
+"Coupez le poulet... Laissez mariner 60 minutes."
+"Mettez l oignon, le gingembre et l ail dans le bol inox. [ROBOT EXPERT] 2min / Vitesse 13"
+"Ajoutez le beurre et l huile. [ROBOT EXPERT] 5min / Vitesse 1A / 110 C"
+"Deposez la tomate et le concentre. [ROBOT MIJOTAGE] 10min / Vitesse 1A / 110 C"
+"Ajoutez les noix de cajou et la creme. [ROBOT EXPERT] 30sec / Vitesse 5"
+"Ajoutez le poulet marine. [ROBOT EXPERT] 10min / Vitesse 1A / 110 C"
 
-Pour CHAQUE etape ayant une consigne robot, formate l'instruction ainsi:
-Texte de l'etape. [ROBOT mode] Xmin / VitesseY / Z degC
-Si temperature absente: [ROBOT mode] Xmin / VitesseY
+Si pas de recette trouvee: {"error":"no_recipe"}`;
 
-Exemple concret:
-Etape 2 texte: "Mettez l'oignon, le gingembre et l'ail dans le bol inox. Lancez le programme."
-Consigne droite: "EXPERT 02:00 / 13 / __ C"
-Resultat attendu: "Mettez l'oignon, le gingembre et l'ail dans le bol inox. Lancez le programme. [ROBOT EXPERT] 2min / Vitesse 13"
+  const SYSTEM_OTHER = `Tu es un extracteur de recettes de cuisine. Extrais la recette et reponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, avec exactement ces champs:
+- name (string)
+- category (string parmi: Entree, Plat, Dessert, Aperitif, Petit-dejeuner, Autre)
+- prepTime (nombre entier de minutes ou null)
+- servings (nombre entier ou null)
+- ingredients (string, un ingredient par ligne)
+- instructions (string, une etape par ligne)
 
-Etape 3 texte: "Ajoutez le beurre et l'huile d'olive, puis lancez le programme."
-Consigne droite: "EXPERT 05:00 / 1A / 110 C"
-Resultat attendu: "Ajoutez le beurre et l'huile d'olive. [ROBOT EXPERT] 5min / Vitesse 1A / 110 degC"
-
-NE JAMAIS omettre les consignes robot. Elles sont essentielles pour utiliser le robot correctement.
-
-Si pas de recette trouvee reponds uniquement: {"error":"no_recipe"}`;
+Pour les recettes robot (Magimix, Thermomix), inclus les consignes robot dans chaque etape sous la forme [ROBOT MODE] Xmin / VitesseY / Z C.
+Si pas de recette trouvee: {"error":"no_recipe"}`;
 
   let messages;
+  let model = 'claude-haiku-4-5-20251001';
+  let system = SYSTEM_OTHER;
 
   if (pdfBase64) {
+    model = 'claude-sonnet-4-6';
+    system = SYSTEM_PDF;
     messages = [{
       role: 'user',
       content: [
         { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
-        { type: 'text', text: 'Extrais la recette complete. IMPORTANT: associe chaque consigne robot (colonne droite: EXPERT/MIJOTAGE avec duree/vitesse/temperature) a l\'etape correspondante (colonne gauche) et inclus-la dans les instructions avec le prefixe [ROBOT MODE].' }
+        { type: 'text', text: 'Extrais la recette. FUSIONNE le BLOC A (etapes texte) avec le BLOC B (consignes robot en bas) pour inclure les parametres robot dans chaque etape.' }
       ]
     }];
   } else if (imagesBase64 && Array.isArray(imagesBase64) && imagesBase64.length > 0) {
@@ -70,7 +78,7 @@ Si pas de recette trouvee reponds uniquement: {"error":"no_recipe"}`;
       role: 'user',
       content: [
         ...imageContents,
-        { type: 'text', text: 'Ces ' + imagesBase64.length + ' photos montrent une meme recette dans l\'ordre. Reconstitue la recette complete sans doublons. Associe chaque consigne robot (icone chapeau orange avec duree/vitesse/temperature) a l\'etape correspondante avec le prefixe [ROBOT MODE].' }
+        { type: 'text', text: 'Ces ' + imagesBase64.length + ' photos montrent une meme recette dans l\'ordre. Reconstitue la recette complete sans doublons. Inclus les consignes robot avec [ROBOT MODE].' }
       ]
     }];
   } else if (imageBase64) {
@@ -80,7 +88,7 @@ Si pas de recette trouvee reponds uniquement: {"error":"no_recipe"}`;
       role: 'user',
       content: [
         { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } },
-        { type: 'text', text: 'Extrais la recette. Associe chaque consigne robot (icone chapeau orange avec duree/vitesse/temperature) a l\'etape correspondante avec le prefixe [ROBOT MODE].' }
+        { type: 'text', text: 'Extrais la recette. Inclus les consignes robot avec [ROBOT MODE].' }
       ]
     }];
   } else if (url) {
@@ -118,12 +126,7 @@ Si pas de recette trouvee reponds uniquement: {"error":"no_recipe"}`;
         'anthropic-version': '2023-06-01',
         'anthropic-beta': 'pdfs-2024-09-25'
       },
-      body: JSON.stringify({
-        model: pdfBase64 ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001',
-        max_tokens: 2000,
-        system: SYSTEM,
-        messages
-      })
+      body: JSON.stringify({ model, max_tokens: 2000, system, messages })
     });
 
     const data = await apiRes.json();
