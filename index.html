@@ -1807,7 +1807,18 @@
       <button class="filter-btn" id="mf-vege" onclick="setMealFilterRegime('vegé',this)" style="font-size:11px;padding:5px 10px">🥦 Végé</button>
     </div>
     <input class="form-input compact" id="meal-search-input" type="text" placeholder="Rechercher une recette..." oninput="renderMealSearchResults(this.value)" style="margin-bottom:10px">
-    <div id="meal-search-results" style="max-height:340px;overflow-y:auto"></div>
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <button onclick="showLeftoversOnly()" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 8px;background:rgba(76,172,122,0.1);border:1px solid rgba(76,172,122,0.3);border-radius:12px;cursor:pointer;font-family:'DM Sans',sans-serif">
+        <span style="font-size:20px">♻️</span>
+        <span style="font-size:11px;font-weight:500;color:#4cac7a;letter-spacing:0.5px">Utiliser les restes</span>
+      </button>
+      <button onclick="selectExteriorMeal()" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 8px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:12px;cursor:pointer;font-family:'DM Sans',sans-serif">
+        <span style="font-size:20px">🍽</span>
+        <span style="font-size:11px;font-weight:500;color:var(--gold);letter-spacing:0.5px">Repas en extérieur</span>
+      </button>
+    </div>
+    <div style="font-size:11px;color:var(--text3);text-align:center;letter-spacing:2px;margin-bottom:10px">— ou choisir une recette —</div>
+    <div id="meal-search-results" style="max-height:280px;overflow-y:auto"></div>
     <button class="btn-secondary" style="margin-top:12px" onclick="closeModal('modal-meal')">Annuler</button>
   </div>
 </div>
@@ -3787,6 +3798,8 @@ const QUOTES = [
           if (slot.type === 'leftovers') {
             nameHTML = '<span class="meal-slot-name" style="color:var(--green)">' + (slot.name || '').toUpperCase() + '</span>';
             metaHTML = '<div class="meal-slot-meta" style="color:var(--green);opacity:0.7">Restes</div>';
+          } else if (slot.type === 'exterior') {
+            nameHTML = '<span class="meal-slot-name" style="color:var(--gold);font-style:italic">🍽 Repas en extérieur</span>';
           } else {
             nameHTML = '<span class="meal-slot-name">' + (slot.name || '').toUpperCase() + '</span>';
             if (slot.meta) metaHTML = '<div class="meal-slot-meta">' + slot.meta + '</div>';
@@ -4193,31 +4206,7 @@ const QUOTES = [
       return true;
     }).sort(([a], [b]) => slotOrder.indexOf(a) - slotOrder.indexOf(b));
 
-    // Bouton déroulant Restes
-    if (previousSlots.length > 0) {
-      const toggle = document.createElement('button');
-      toggle.style.cssText = 'width:100%;text-align:left;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);padding:9px 12px;color:var(--text3);font-family:sans-serif;font-size:12px;cursor:pointer;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center';
-      toggle.innerHTML = '<span>🔄 Utiliser les restes d\'un repas</span><span id="restes-arrow">›</span>';
-      const restesContainer = document.createElement('div');
-      restesContainer.style.display = 'none';
-      toggle.onclick = () => {
-        const open = restesContainer.style.display !== 'none';
-        restesContainer.style.display = open ? 'none' : 'block';
-        document.getElementById('restes-arrow').textContent = open ? '›' : '⌄';
-      };
-      previousSlots.forEach(([k, v]) => {
-        const parts = k.split('-');
-        const label = parts[0].charAt(0).toUpperCase() + parts[0].slice(1) + ' ' + parts[1];
-        const btn = document.createElement('div');
-        btn.className = 'meal-option';
-        btn.style.marginBottom = '4px';
-        btn.textContent = label + ' — ' + (v.name || '').toUpperCase();
-        btn.onclick = () => selectLeftovers(k, v.name);
-        restesContainer.appendChild(btn);
-      });
-      el.appendChild(toggle);
-      el.appendChild(restesContainer);
-    }
+    // (restes maintenant gérés par le bouton dédié showLeftoversOnly)
 
     // Recettes
     const filtered = allRecipes.filter(r => {
@@ -4467,6 +4456,71 @@ const QUOTES = [
   let currentEditSlot = null;
   let activeMealCat = 'all';
   let activeMealRegime = 'all';
+
+  // ===== RESTES ET REPAS EXTÉRIEUR =====
+
+  window.showLeftoversOnly = () => {
+    if (!currentEditSlot) return;
+    const { wkey, slotKey } = currentEditSlot;
+    const plan = weekPlan[wkey] || {};
+    const el = document.getElementById('meal-search-results');
+
+    // Construire l'ordre des slots selon le jour de début configuré
+    const slotOrder = [];
+    getOrderedDays().forEach(day => {
+      const d = day.toLowerCase();
+      ['midi','soir','dessert'].forEach(meal => slotOrder.push(d + '-' + meal));
+    });
+
+    // Trouver le 1er slot de la semaine (midi du 1er jour)
+    const firstSlot = getOrderedDays()[0].toLowerCase() + '-midi';
+    const firstSlotIdx = slotOrder.indexOf(firstSlot);
+    const currentIdx = slotOrder.indexOf(slotKey);
+
+    // Restes disponibles = repas planifiés depuis le 1er midi jusqu'au slot courant (exclu), pas de restes de restes
+    const available = slotOrder
+      .slice(firstSlotIdx, currentIdx)
+      .filter(k => {
+        const v = plan[k];
+        return v && v.name && v.type !== 'leftovers' && k !== slotKey;
+      });
+
+    el.innerHTML = '';
+
+    if (available.length === 0) {
+      el.innerHTML = '<div style="font-size:13px;color:var(--text3);padding:12px 0;text-align:center">Aucun reste disponible cette semaine</div>';
+      return;
+    }
+
+    available.forEach(k => {
+      const v = plan[k];
+      const parts = k.split('-');
+      const dayName = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+      const mealName = parts[1];
+      const label = dayName + ' ' + mealName;
+      const btn = document.createElement('div');
+      btn.className = 'meal-option';
+      btn.style.cssText = 'border-left:3px solid rgba(76,172,122,0.5)';
+      btn.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between">'
+        + '<div>'
+        + '<div style="font-size:13px;font-weight:500;color:var(--text)">♻️ ' + (v.name || '').toUpperCase() + '</div>'
+        + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Restes du ' + label + '</div>'
+        + '</div>'
+        + '</div>';
+      btn.onclick = () => selectLeftovers(k, v.name);
+      el.appendChild(btn);
+    });
+  };
+
+  window.selectExteriorMeal = () => {
+    if (!currentEditSlot) return;
+    const { wkey, slotKey } = currentEditSlot;
+    if (!weekPlan[wkey]) weekPlan[wkey] = {};
+    weekPlan[wkey][slotKey] = { type: 'exterior', name: 'Repas en extérieur' };
+    closeModal('modal-meal');
+    renderWeekGrid();
+    saveWeekPlan(wkey);
+  };
 
   window.setMealFilterCat = (filter, btn) => {
     activeMealCat = filter;
