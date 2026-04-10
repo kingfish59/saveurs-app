@@ -3566,6 +3566,9 @@ const QUOTES = [
 
   // -- SEMAINIER --
   // DAYS réordonné selon weekStartDay
+  // Jour de début de semaine — doit être déclaré AVANT ALL_DAYS et getOrderedDays
+  let weekStartDay = parseInt(localStorage.getItem('saveurs-week-start') || '1');
+
   const ALL_DAYS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
   function getOrderedDays() {
     const start = weekStartDay; // 0=dim, 1=lun...
@@ -3580,9 +3583,6 @@ const QUOTES = [
   let currentWeekOffset = 0; // 0 = semaine courante
   let weekPlan = {}; // { 'YYYY-WW': { 'lundi-midi': { type, recipeId, name, meta }, ... } }
   let shoppingChecked = {}; // { 'lundi-midi': true }
-
-  // Jour de début de semaine (0=dim, 1=lun...6=sam) — sauvegardé en localStorage
-  let weekStartDay = parseInt(localStorage.getItem('saveurs-week-start') || '1');
 
   function getWeekStart(offset) {
     const now = new Date();
