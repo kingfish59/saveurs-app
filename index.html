@@ -1464,9 +1464,13 @@
         <button type="button" onclick="importFromUrl()" id="btn-import-url" style="background:var(--gold);border:none;border-radius:var(--radius-sm);padding:9px 16px;color:var(--bg);font-size:13px;cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif">URL</button>
       </div>
       <div style="margin-top:8px">
-        <input type="file" id="r-photo-import" accept="image/*" style="display:none" onchange="openCropModal(this)">
+        <input type="file" id="r-photo-import" accept="image/*" multiple style="display:none" onchange="onPhotoImportChange(this)">
         <button type="button" onclick="document.getElementById('r-photo-import').click()" id="btn-import-photo" style="width:100%;background:var(--surface);border:1px solid rgba(201,168,76,0.3);border-radius:var(--radius-sm);padding:10px 16px;color:var(--gold);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px">
-          <span style="font-size:16px">📷</span> Importer depuis une photo
+          <span style="font-size:16px">📷</span> Importer depuis 1 à 3 photos
+        </button>
+        <div id="photo-import-previews" style="display:none;display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"></div>
+        <button type="button" id="btn-import-photos-confirm" onclick="importFromPhotos()" style="display:none;width:100%;margin-top:8px;background:var(--gold);border:none;border-radius:var(--radius-sm);padding:10px 16px;color:var(--bg);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500">
+          ✓ Analyser ces photos
         </button>
       </div>
       <div style="margin-top:8px">
@@ -3210,15 +3214,86 @@ const QUOTES = [
     input.value = '';
   };
 
-  // -- IMPORT DEPUIS PHOTO --
+  // -- IMPORT DEPUIS PHOTO(S) --
+  let pendingPhotosBase64 = [];
+
+  window.onPhotoImportChange = async (input) => {
+    if (!input.files || input.files.length === 0) return;
+    const files = Array.from(input.files).slice(0, 3); // max 3 photos
+    pendingPhotosBase64 = [];
+    const previewEl = document.getElementById('photo-import-previews');
+    const confirmBtn = document.getElementById('btn-import-photos-confirm');
+    previewEl.innerHTML = '';
+    previewEl.style.display = 'flex';
+
+    for (const file of files) {
+      const base64 = await compressImage(file, 1200, 0.85);
+      pendingPhotosBase64.push(base64);
+      const img = document.createElement('img');
+      img.src = base64;
+      img.style.cssText = 'width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid rgba(201,168,76,0.3)';
+      previewEl.appendChild(img);
+    }
+
+    confirmBtn.style.display = 'block';
+    confirmBtn.textContent = pendingPhotosBase64.length === 1
+      ? '✓ Analyser cette photo'
+      : '✓ Analyser ces ' + pendingPhotosBase64.length + ' photos';
+  };
+
+  window.importFromPhotos = async () => {
+    if (pendingPhotosBase64.length === 0) return;
+    const statusEl = document.getElementById('import-status');
+    const btnEl = document.getElementById('btn-import-photos-confirm');
+    statusEl.style.color = 'var(--text3)';
+    statusEl.textContent = 'Analyse en cours...';
+    btnEl.disabled = true;
+    btnEl.textContent = '⏳ Analyse...';
+    try {
+      const body = pendingPhotosBase64.length === 1
+        ? { imageBase64: pendingPhotosBase64[0] }
+        : { imagesBase64: pendingPhotosBase64 };
+      const response = await fetch('/api/import-recipe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const recipe = await response.json();
+      if (recipe.error) {
+        statusEl.textContent = recipe.error === 'no_recipe'
+          ? 'Aucune recette trouvée sur ces photos.'
+          : 'Erreur importation. Essaie avec des photos plus nettes.';
+        statusEl.style.color = 'var(--red)';
+      } else {
+        if (recipe.name) document.getElementById('r-name').value = recipe.name;
+        if (recipe.category) document.getElementById('r-category').value = recipe.category;
+        if (recipe.prepTime) document.getElementById('r-time').value = recipe.prepTime;
+        if (recipe.servings) document.getElementById('r-servings').value = recipe.servings;
+        if (recipe.ingredients) document.getElementById('r-ingredients').value = recipe.ingredients;
+        if (recipe.instructions) document.getElementById('r-instructions').value = recipe.instructions;
+        statusEl.textContent = 'Recette importée ! Vérifie et complète les champs.';
+        statusEl.style.color = 'var(--green)';
+        // Réinitialiser les previews
+        document.getElementById('photo-import-previews').style.display = 'none';
+        document.getElementById('btn-import-photos-confirm').style.display = 'none';
+        pendingPhotosBase64 = [];
+      }
+    } catch(e) {
+      statusEl.textContent = 'Erreur : ' + e.message;
+      statusEl.style.color = 'var(--red)';
+    }
+    btnEl.disabled = false;
+    btnEl.textContent = '✓ Analyser ces photos';
+    document.getElementById('r-photo-import').value = '';
+  };
+
+  // Garder importFromPhoto pour compatibilité avec le crop tool
   window.importFromPhoto = async (input) => {
-    // Accepte soit un File input soit directement un string base64
     const statusEl = document.getElementById('import-status');
     const btnEl = document.getElementById('btn-import-photo');
     statusEl.style.color = 'var(--text3)';
     statusEl.textContent = 'Analyse de la photo en cours...';
-    btnEl.disabled = true;
-    btnEl.innerHTML = '<span>⏳</span> Analyse...';
+    if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = '<span>⏳</span> Analyse...'; }
     try {
       const base64 = typeof input === 'string' ? input : await compressImage(input.files[0], 1200, 0.85);
       const response = await fetch('/api/import-recipe', {
@@ -3230,7 +3305,7 @@ const QUOTES = [
       if (recipe.error) {
         statusEl.textContent = recipe.error === 'no_recipe'
           ? 'Aucune recette trouvee sur cette photo.'
-          : "Erreur importation. Essaie une autre photo.";
+          : 'Erreur importation. Essaie une autre photo.';
         statusEl.style.color = 'var(--red)';
       } else {
         if (recipe.name) document.getElementById('r-name').value = recipe.name;
@@ -3246,10 +3321,10 @@ const QUOTES = [
       statusEl.textContent = 'Erreur : ' + e.message;
       statusEl.style.color = 'var(--red)';
     }
-    btnEl.disabled = false;
-    btnEl.innerHTML = '<span style="font-size:16px">📷</span> Importer depuis une photo';
-    input.value = '';
+    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '<span style="font-size:16px">📷</span> Importer depuis 1 à 3 photos'; }
+    if (typeof input !== 'string') input.value = '';
   };
+
 
   // -- IMPORT DEPUIS URL --
   window.importFromUrl = async () => {
