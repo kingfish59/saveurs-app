@@ -1306,7 +1306,6 @@
 
       <!-- Boutons actions -->
       <div style="display:flex;gap:8px;margin-bottom:16px">
-        <button onclick="inspireMe()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">✨ Inspire-moi</button>
         <button onclick="openShoppingList()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🛒 Liste de courses</button>
         <button onclick="resetWeek()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🗑 Effacer</button>
         <button onclick="generateWeekPDF()" style="flex:1;padding:9px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">📄 PDF</button>
@@ -4041,19 +4040,7 @@ const QUOTES = [
     saveWeekPlan(wkey); // async en arrière-plan
   };
 
-  window.inspireMe = () => {
-    if (!allRecipes.length) { showToast('Aucune recette disponible'); return; }
-    // Choisir une recette pas faite récemment
-    const recent = Object.values(weekPlan).flatMap(w => Object.values(w).map(s => s.recipeId)).filter(Boolean);
-    const pool = allRecipes.filter(r => !recent.includes(r.id));
-    const list = pool.length > 0 ? pool : allRecipes;
-    const pick = list[Math.floor(Math.random() * list.length)];
-    const d = typeof pick.data === 'function' ? pick.data() : pick.data;
-    showToast('Suggestion : ' + d.name);
-    if (currentEditSlot) {
-      selectRecipe(pick.id, d.name, d.category || '');
-    }
-  };
+;
 
   let allIngredientLines = []; // stockage global pour la sélection
 
