@@ -3433,25 +3433,139 @@ const QUOTES = [
     const recipe = allRecipes.find(r => r.id === currentRecipeId);
     if (!recipe) return;
     const d = typeof recipe.data === 'function' ? recipe.data() : recipe.data;
-    const stars = d.rating ? '★'.repeat(d.rating) : '';
-    const cost = d.cost ? '€'.repeat(d.cost) : '';
-    let existing = document.getElementById('print-area');
-    if (existing) existing.remove();
-    const div = document.createElement('div');
-    div.id = 'print-area';
-    div.innerHTML = `<div class="print-recipe">
-      <div class="print-recipe-name">${d.name || ''}</div>
-      <div class="print-recipe-meta">${[d.category, d.prepTime ? d.prepTime + ' min' : '', d.servings ? d.servings + ' pers.' : '', stars, cost].filter(Boolean).join(' · ')}</div>
-      ${d.ingredients ? '<div class="print-section">Ingrédients</div><div class="print-text">' + d.ingredients + '</div>' : ''}
-      ${d.instructions ? '<div class="print-section">Instructions</div><div class="print-text">' + d.instructions + '</div>' : ''}
-    </div>`;
-    document.body.appendChild(div);
-    // Petit délai pour que le DOM soit prêt avant l'impression
-    requestAnimationFrame(() => {
-      window.print();
-      setTimeout(() => div.remove(), 2000);
-    });
+
+    const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+    if (!jsPDF) { showToast('Erreur : librairie PDF non chargée'); return; }
+
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageW = 210;
+    const margin = 20;
+    const contentW = pageW - margin * 2;
+    let y = 20;
+
+    // Fond blanc
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, pageW, 297, 'F');
+
+    // Titre Saveurs
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(180, 150, 60);
+    doc.text('SAVEURS', pageW / 2, y, { align: 'center' });
+    y += 6;
+
+    // Ligne décorative
+    doc.setDrawColor(201, 168, 76);
+    doc.setLineWidth(0.4);
+    doc.line(margin, y, pageW - margin, y);
+    y += 8;
+
+    // Nom de la recette
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(30, 25, 15);
+    const nameLines = doc.splitTextToSize((d.name || '').toUpperCase(), contentW);
+    doc.text(nameLines, pageW / 2, y, { align: 'center' });
+    y += nameLines.length * 7 + 4;
+
+    // Métadonnées
+    const meta = [
+      d.category || '',
+      d.prepTime ? d.prepTime : '',
+      d.servings ? d.servings + ' pers.' : '',
+      d.cost ? '€'.repeat(d.cost) : ''
+    ].filter(Boolean).join('  ·  ');
+    if (meta) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(120, 100, 60);
+      doc.text(meta, pageW / 2, y, { align: 'center' });
+      y += 8;
+    }
+
+    // Ligne séparatrice
+    doc.setDrawColor(220, 200, 150);
+    doc.setLineWidth(0.2);
+    doc.line(margin, y, pageW - margin, y);
+    y += 8;
+
+    // Ingrédients
+    if (d.ingredients) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(170, 130, 50);
+      doc.text('Ingrédients', margin, y);
+      y += 6;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(40, 35, 25);
+      const lines = d.ingredients.split('\n').filter(l => l.trim());
+      lines.forEach(line => {
+        const wrapped = doc.splitTextToSize('· ' + line.trim(), contentW);
+        if (y + wrapped.length * 5 > 277) { doc.addPage(); y = 20; }
+        doc.text(wrapped, margin, y);
+        y += wrapped.length * 5 + 1;
+      });
+      y += 4;
+    }
+
+    // Ligne séparatrice
+    if (d.instructions) {
+      doc.setDrawColor(220, 200, 150);
+      doc.setLineWidth(0.2);
+      doc.line(margin, y, pageW - margin, y);
+      y += 8;
+    }
+
+    // Instructions
+    if (d.instructions) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(170, 130, 50);
+      doc.text('Instructions', margin, y);
+      y += 6;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(40, 35, 25);
+      const steps = d.instructions.split('\n').filter(l => l.trim());
+      steps.forEach((step, i) => {
+        const prefix = steps.length > 1 ? (i + 1) + '. ' : '';
+        const wrapped = doc.splitTextToSize(prefix + step.trim(), contentW);
+        if (y + wrapped.length * 5 > 277) { doc.addPage(); y = 20; }
+        doc.text(wrapped, margin, y);
+        y += wrapped.length * 5 + 3;
+      });
+    }
+
+    // Pied de page
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(180, 170, 150);
+    doc.text('Saveurs — saveurs-app.vercel.app', pageW / 2, 290, { align: 'center' });
+
+    // Générer et partager
+    const pdfBlob = doc.output('blob');
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    const filename = (d.name || 'recette').toLowerCase().replace(/[^a-z0-9]/g, '-') + '.pdf';
+
+    if (navigator.share && navigator.canShare) {
+      const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+      if (navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: d.name || 'Recette' })
+          .catch(e => { if (e.name !== 'AbortError') { fallbackDownload(pdfUrl, filename); } });
+        return;
+      }
+    }
+    fallbackDownload(pdfUrl, filename);
   };
+
+  function fallbackDownload(url, filename) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+  }
+
 
   // -- PARTAGE RECETTE --
   window.shareLinkRecipe = async () => {
