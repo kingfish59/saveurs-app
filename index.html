@@ -4021,14 +4021,16 @@ const QUOTES = [
   let dupCalOffset = 0; // offset en mois par rapport au mois courant
 
   function getWeeksInMonth(year, month) {
-    // Retourne toutes les semaines (lundi) qui ont au moins un jour dans ce mois
+    // Retourne toutes les semaines (début selon weekStartDay) qui ont au moins un jour dans ce mois
     const weeks = [];
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    // Trouver le premier lundi du mois ou avant
+    // Trouver le premier jour de semaine configuré avant ou égal au 1er du mois
     let d = new Date(firstDay);
     const dow = d.getDay();
-    d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+    let diff = dow - weekStartDay;
+    if (diff < 0) diff += 7;
+    d.setDate(d.getDate() - diff);
     while (d <= lastDay) {
       weeks.push(new Date(d));
       d = new Date(d); d.setDate(d.getDate() + 7);
@@ -4050,14 +4052,20 @@ const QUOTES = [
     const grid = document.getElementById('dup-cal-grid');
     grid.innerHTML = '';
 
-    weeks.forEach(mondayDate => {
-      const sundayDate = new Date(mondayDate); sundayDate.setDate(mondayDate.getDate() + 6);
+    weeks.forEach(weekStartDate => {
+      const weekEndDate = new Date(weekStartDate); weekEndDate.setDate(weekStartDate.getDate() + 6);
+      // wkey toujours basé sur le lundi ISO de cette semaine pour cohérence avec Firestore
+      const monday = new Date(weekStartDate);
+      const dow = monday.getDay();
+      const diffToMon = (dow === 0 ? -6 : 1 - dow);
+      monday.setDate(monday.getDate() + diffToMon);
+      // Si weekStartDay est avant lundi dans la semaine, le lundi est dans la même semaine ISO
       const weekNum = (() => {
-        const d = new Date(mondayDate);
+        const d = new Date(monday);
         const yearStart = new Date(d.getFullYear(), 0, 1);
         return Math.ceil(((d - yearStart) / 86400000 + yearStart.getDay() + 1) / 7);
       })();
-      const wkey = mondayDate.getFullYear() + '-W' + String(weekNum).padStart(2, '0');
+      const wkey = monday.getFullYear() + '-W' + String(weekNum).padStart(2, '0');
       const isSource = wkey === sourceWkey;
       const filled = weekPlan[wkey] && Object.values(weekPlan[wkey]).filter(s => s && s.name).length > 0;
 
@@ -4068,7 +4076,7 @@ const QUOTES = [
         + 'display:flex;justify-content:space-between;align-items:center;'
         + 'opacity:' + (isSource ? '0.5' : '1') + ';';
 
-      const dateStr = formatDayDate(mondayDate) + ' — ' + formatDayDate(sundayDate);
+      const dateStr = formatDayDate(weekStartDate) + ' — ' + formatDayDate(weekEndDate);
       btn.innerHTML = '<div>'
         + '<div style="font-size:13px;color:var(--text);font-weight:500">Semaine ' + weekNum + '</div>'
         + '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + dateStr + '</div>'
@@ -4081,7 +4089,7 @@ const QUOTES = [
         // Calculer l'offset de destination
         const today = new Date(); today.setHours(0,0,0,0);
         const todayMon = new Date(today); const td = today.getDay(); todayMon.setDate(today.getDate() - (td === 0 ? 6 : td - 1));
-        const diffDays = (mondayDate - todayMon) / 86400000;
+        const diffDays = (weekStartDate - todayMon) / 86400000;
         const destOffset = Math.round(diffDays / 7);
         btn.onclick = () => duplicateWeek(sourceWkey, wkey, destOffset);
       }
