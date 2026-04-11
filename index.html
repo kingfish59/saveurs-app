@@ -2368,13 +2368,18 @@ const QUOTES = [
   async function loadCookCounts() {
     try {
       const gid = userGroupId || currentUser.uid;
-      const snap = await getDocs(collection(db, 'groups', gid, 'history'));
+      // Compter les apparitions dans tous les semainiers
+      const weekplansSnap = await getDocs(collection(db, 'groups', gid, 'weekplans'));
       cookCounts = {};
-      snap.docs.forEach(d => {
-        const rid = d.data().recipeId;
-        if (rid) cookCounts[rid] = (cookCounts[rid] || 0) + 1;
+      weekplansSnap.docs.forEach(d => {
+        const plan = d.data();
+        Object.values(plan).forEach(slot => {
+          if (slot && slot.type === 'recipe' && slot.recipeId) {
+            cookCounts[slot.recipeId] = (cookCounts[slot.recipeId] || 0) + 1;
+          }
+        });
       });
-      // Trouver la recette la plus cuisinée
+      // Trouver la recette la plus planifiée
       let max = 0;
       topRecipeId = null;
       Object.entries(cookCounts).forEach(([id, count]) => {
