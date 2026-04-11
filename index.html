@@ -1280,7 +1280,6 @@
         <button class="filter-btn" data-cat="Plat" onclick="setFilterCat('Plat',this)">Plats</button>
         <button class="filter-btn" data-cat="Dessert" onclick="setFilterCat('Dessert',this)">Desserts</button>
         <button class="filter-btn" data-cat="Apéritif" onclick="setFilterCat('Apéritif',this)">Apéritifs</button>
-        <button class="filter-btn" data-cat="ancien" onclick="setFilterCat('ancien',this)">🕰 Oubliées</button>
         <button class="filter-btn" data-cat="Autre" onclick="setFilterCat('Autre',this)">Autre</button>
       </div>
       <div class="filters-row" id="filters-regime" style="margin-top:-4px">
@@ -4322,14 +4321,7 @@ const QUOTES = [
       allIngredientLines = groupIngredients(rawLines);
     }
 
-    checklist.innerHTML = '';
-    allIngredientLines.forEach((line, i) => {
-      const item = document.createElement('label');
-      item.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid rgba(201,168,76,0.06);cursor:pointer';
-      item.innerHTML = '<input type="checkbox" id="ing-' + i + '" checked style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;flex-shrink:0">'
-        + '<span style="font-size:13px;color:var(--text)">' + line + '</span>';
-      checklist.appendChild(item);
-    });
+    renderChecklist();
   };
 
   window.addShoppingIngredient = () => {
@@ -4337,13 +4329,7 @@ const QUOTES = [
     const val = input.value.trim();
     if (!val) return;
     allIngredientLines.push(val);
-    const checklist = document.getElementById('ingredients-checklist');
-    const i = allIngredientLines.length - 1;
-    const item = document.createElement('label');
-    item.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid rgba(201,168,76,0.06);cursor:pointer';
-    item.innerHTML = '<input type="checkbox" id="ing-' + i + '" checked style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;flex-shrink:0">'
-      + '<span style="font-size:13px;color:var(--text)">' + val + '</span>';
-    checklist.appendChild(item);
+    renderChecklist();
     input.value = '';
     input.focus();
   };
@@ -4353,6 +4339,129 @@ const QUOTES = [
       cb.checked = checked;
     });
   };
+
+  function renderChecklist() {
+    const checklist = document.getElementById('ingredients-checklist');
+    checklist.innerHTML = '';
+    allIngredientLines.forEach((line, i) => {
+      // Ligne de catégorie (ex: "--- Légumes ---")
+      if (/^---/.test(line.trim())) {
+        const cat = document.createElement('div');
+        cat.className = 'ing-category';
+        cat.dataset.catIdx = i;
+        cat.style.cssText = 'font-size:11px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;padding:10px 4px 4px;margin-top:4px;cursor:pointer;display:flex;align-items:center;gap:6px';
+        const label = line.replace(/---/g, '').trim();
+        cat.innerHTML = '<span class="cat-toggle-icon">▼</span>' + label;
+        cat.addEventListener('click', () => toggleCategory(cat));
+        checklist.appendChild(cat);
+        return;
+      }
+      const item = document.createElement('label');
+      item.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid rgba(201,168,76,0.06);cursor:pointer';
+      item.dataset.ingIdx = i;
+      const span = document.createElement('span');
+      span.style.cssText = 'font-size:13px;color:var(--text);flex:1';
+      span.textContent = line;
+      // Double-tap pour éditer
+      let lastTap = 0;
+      span.addEventListener('click', (e) => {
+        const now = Date.now();
+        if (now - lastTap < 350) {
+          e.preventDefault();
+          editIngredient(i, span, item);
+        }
+        lastTap = now;
+      });
+      item.innerHTML = '<input type="checkbox" id="ing-' + i + '" checked style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;flex-shrink:0">';
+      item.appendChild(span);
+      // Masquer la catégorie si tous ses ingrédients sont décochés
+      item.querySelector('input').addEventListener('change', updateCategoryVisibility);
+      checklist.appendChild(item);
+    });
+  }
+
+  function editIngredient(idx, span, item) {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = allIngredientLines[idx];
+    input.style.cssText = 'flex:1;background:var(--surface2);border:1px solid rgba(201,168,76,0.4);border-radius:6px;padding:4px 8px;color:var(--text);font-family:"DM Sans",sans-serif;font-size:13px;outline:none';
+    item.replaceChild(input, span);
+    input.focus();
+    input.select();
+    const save = () => {
+      const val = input.value.trim();
+      if (val) allIngredientLines[idx] = val;
+      const newSpan = document.createElement('span');
+      newSpan.style.cssText = span.style.cssText;
+      newSpan.textContent = val || allIngredientLines[idx];
+      let lastTap = 0;
+      newSpan.addEventListener('click', (e) => {
+        const now = Date.now();
+        if (now - lastTap < 350) { e.preventDefault(); editIngredient(idx, newSpan, item); }
+        lastTap = now;
+      });
+      item.replaceChild(newSpan, input);
+    };
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') { input.value = allIngredientLines[idx]; input.blur(); } });
+  }
+
+  function toggleCategory(catEl) {
+    const checklist = document.getElementById('ingredients-checklist');
+    const items = Array.from(checklist.children);
+    const catIdx = items.indexOf(catEl);
+    // Trouver tous les ingrédients de cette catégorie (jusqu'à la prochaine catégorie)
+    const siblings = [];
+    for (let j = catIdx + 1; j < items.length; j++) {
+      if (items[j].classList.contains('ing-category')) break;
+      siblings.push(items[j]);
+    }
+    // Vérifier si tous cochés
+    const allChecked = siblings.every(el => {
+      const cb = el.querySelector('input[type="checkbox"]');
+      return cb && cb.checked;
+    });
+    // Tout décocher si tous cochés, sinon tout cocher
+    siblings.forEach(el => {
+      const cb = el.querySelector('input[type="checkbox"]');
+      if (cb) cb.checked = !allChecked;
+    });
+    // Mettre à jour l'icône
+    const icon = catEl.querySelector('.cat-toggle-icon');
+    if (icon) icon.textContent = allChecked ? '▶' : '▼';
+  }
+
+  function updateCategoryVisibility() {
+    const checklist = document.getElementById('ingredients-checklist');
+    const items = Array.from(checklist.children);
+    let currentCat = null;
+    items.forEach(el => {
+      if (el.classList.contains('ing-category')) {
+        currentCat = el;
+      } else if (currentCat) {
+        // Vérifier si au moins un ingrédient coché dans cette catégorie
+        const cb = el.querySelector('input[type="checkbox"]');
+        if (cb && cb.checked) {
+          currentCat.style.display = '';
+          currentCat = null; // on a trouvé un coché, pas besoin de continuer pour cette cat
+        }
+      }
+    });
+    // Second pass : masquer les catégories sans aucun ingrédient coché
+    currentCat = null;
+    let hasChecked = false;
+    items.forEach((el, i) => {
+      if (el.classList.contains('ing-category')) {
+        if (currentCat !== null) currentCat.style.display = hasChecked ? '' : 'none';
+        currentCat = el;
+        hasChecked = false;
+      } else if (currentCat) {
+        const cb = el.querySelector('input[type="checkbox"]');
+        if (cb && cb.checked) hasChecked = true;
+      }
+    });
+    if (currentCat !== null) currentCat.style.display = hasChecked ? '' : 'none';
+  }
 
   window.confirmShoppingList = () => {
     const checklist = document.getElementById('ingredients-checklist');
