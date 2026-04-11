@@ -1289,7 +1289,8 @@
         <button class="filter-btn" data-regime="poisson" onclick="setFilterRegime('poisson',this)">🐟 Poisson</button>
         <button class="filter-btn" data-regime="vegé" onclick="setFilterRegime('vegé',this)">🥦 Végé</button>
       </div>
-      <div class="filters-row" id="filters-badges" style="margin-top:-4px">
+      <div class="filters-row" id="filters-badges" style="margin-top:-4px;display:flex;align-items:center;gap:6px">
+        <span style="font-size:11px;color:var(--text3);white-space:nowrap">Badges :</span>
         <button class="filter-btn" id="filter-favori" onclick="toggleFilterBadge('favori',this)">❤️ Favoris</button>
         <button class="filter-btn" id="filter-healthy" onclick="toggleFilterBadge('healthy',this)">🌿 Healthy</button>
       </div>
@@ -1839,7 +1840,8 @@
       <button class="filter-btn" id="mf-poisson" onclick="setMealFilterRegime('poisson',this)" style="font-size:11px;padding:5px 10px">🐟 Poisson</button>
       <button class="filter-btn" id="mf-vege" onclick="setMealFilterRegime('vegé',this)" style="font-size:11px;padding:5px 10px">🥦 Végé</button>
     </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <span style="font-size:11px;color:var(--text3);white-space:nowrap">Badges :</span>
       <button class="filter-btn" id="mf-favori" onclick="toggleMealFilterBadge('favori',this)" style="font-size:11px;padding:5px 10px">❤️ Favoris</button>
       <button class="filter-btn" id="mf-healthy" onclick="toggleMealFilterBadge('healthy',this)" style="font-size:11px;padding:5px 10px">🌿 Healthy</button>
     </div>
@@ -4426,7 +4428,18 @@ const QUOTES = [
     const input = document.getElementById('shopping-add-input');
     const val = input.value.trim();
     if (!val) return;
-    allIngredientLines.push(val);
+
+    // Chercher si la catégorie "Produits complémentaires" existe déjà
+    const catLabel = '--- Produits complémentaires ---';
+    const catIdx = allIngredientLines.indexOf(catLabel);
+    if (catIdx === -1) {
+      // Ajouter la catégorie puis l'ingrédient
+      allIngredientLines.push(catLabel);
+      allIngredientLines.push(val);
+    } else {
+      // Insérer après la catégorie (et ses ingrédients existants)
+      allIngredientLines.push(val);
+    }
     renderChecklist();
     input.value = '';
     input.focus();
@@ -4492,7 +4505,8 @@ const QUOTES = [
     input.style.cssText = 'flex:1;background:var(--surface2);border:1px solid rgba(201,168,76,0.4);border-radius:6px;padding:4px 8px;color:var(--text);font-family:"DM Sans",sans-serif;font-size:13px;outline:none';
     item.replaceChild(input, span);
     input.focus();
-    input.select();
+    const len = input.value.length;
+    input.setSelectionRange(len, len);
     const save = () => {
       const val = input.value.trim();
       if (val) allIngredientLines[idx] = val;
