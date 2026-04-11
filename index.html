@@ -1268,6 +1268,7 @@
       <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:8px;gap:8px">
         <span style="font-size:11px;color:var(--text3);letter-spacing:1px">TRIER</span>
         <select id="sort-select" onchange="sortAndRender()" style="background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);padding:5px 10px;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;outline:none">
+          <option value="alpha">A → Z</option>
           <option value="date">Date ajout</option>
           <option value="alpha">A → Z</option>
           <option value="note">Note</option>
@@ -4676,14 +4677,14 @@ const QUOTES = [
     activeMealCat = filter;
     document.querySelectorAll('#modal-meal .filter-btn[id^="mf-cat"], #modal-meal #mf-entree, #modal-meal #mf-plat, #modal-meal #mf-dessert, #modal-meal #mf-cat-all').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    renderMealSearchResults(document.getElementById('meal-search-input').value || '');
+    renderMealSearchResults('');
   };
 
   window.setMealFilterRegime = (regime, btn) => {
     activeMealRegime = regime;
     document.querySelectorAll('#modal-meal #mf-viande, #modal-meal #mf-poisson, #modal-meal #mf-vege, #modal-meal #mf-regime-all').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    renderMealSearchResults(document.getElementById('meal-search-input').value || '');
+    renderMealSearchResults('');
   };
 
   window.switchPage = (page) => {
