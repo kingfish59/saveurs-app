@@ -9,8 +9,51 @@ export default async function handler(req, res) {
   const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
   if (!ANTHROPIC_KEY) return res.status(500).json({ error: 'no_api_key' });
 
-  const { url, imageBase64, imagesBase64, pdfBase64 } = req.body || {};
+  const { url, imageBase64, imagesBase64, pdfBase64, groupIngredients } = req.body || {};
 
+  // ===== MODE REGROUPEMENT INGRÉDIENTS =====
+  if (groupIngredients && Array.isArray(groupIngredients)) {
+    const SYSTEM_GROUP = `Tu es un assistant culinaire. On te donne une liste brute d'ingrédients issus de plusieurs recettes.
+Tu dois regrouper et additionner les doublons, puis retourner UNIQUEMENT un JSON valide sans markdown ni backticks:
+{"ingredients": ["ligne 1", "ligne 2", ...]}
+
+Règles:
+- Additionne les quantités du même ingrédient si les unités sont compatibles (ex: 200g beurre + 100g beurre = 300g beurre)
+- Si unités incompatibles ou ingrédients différents, garde-les séparés
+- Trie par catégorie logique: produits frais, viandes, légumes, épices, etc. Sépare les catégories par une ligne vide comme "--- Légumes ---"
+- Chaque ligne = un ingrédient avec sa quantité
+- Pas de puces ni tirets devant les ingrédients
+- Réponds UNIQUEMENT avec le JSON, rien d'autre`;
+
+    try {
+      const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 1000,
+          system: SYSTEM_GROUP,
+          messages: [{
+            role: 'user',
+            content: 'Regroupe ces ingrédients:\n\n' + groupIngredients.join('\n')
+          }]
+        })
+      });
+      const data = await apiRes.json();
+      const text = (data.content && data.content[0] && data.content[0].text) || '';
+      const clean = text.replace(/```json|```/g, '').trim();
+      const result = JSON.parse(clean);
+      return res.status(200).json(result);
+    } catch(e) {
+      return res.status(200).json({ error: 'group_error', detail: e.message });
+    }
+  }
+
+  // ===== MODE IMPORT RECETTE =====
   const SYSTEM = `Tu es un extracteur de recettes de cuisine. Extrais la recette et reponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, avec exactement ces champs: name (string), category (string parmi: Entree, Plat, Dessert, Aperitif, Petit-dejeuner, Autre), prepTime (nombre entier de minutes ou null), servings (nombre entier ou null), ingredients (string, un ingredient par ligne), instructions (string, une etape par ligne). Si pas de recette trouvee reponds uniquement: {"error":"no_recipe"}`;
 
   let messages;
