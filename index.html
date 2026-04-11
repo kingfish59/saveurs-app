@@ -1289,6 +1289,10 @@
         <button class="filter-btn" data-regime="poisson" onclick="setFilterRegime('poisson',this)">🐟 Poisson</button>
         <button class="filter-btn" data-regime="vegé" onclick="setFilterRegime('vegé',this)">🥦 Végé</button>
       </div>
+      <div class="filters-row" id="filters-badges" style="margin-top:-4px">
+        <button class="filter-btn" id="filter-favori" onclick="toggleFilterBadge('favori',this)">❤️ Favoris</button>
+        <button class="filter-btn" id="filter-healthy" onclick="toggleFilterBadge('healthy',this)">🌿 Healthy</button>
+      </div>
       <div id="recipes-list">
         <div class="empty-state">
           <div class="empty-icon">📖</div>
@@ -1581,6 +1585,14 @@
       </label>
     </div>
 
+
+    <div class="form-group">
+      <label class="form-label">Badges</label>
+      <div style="display:flex;gap:10px">
+        <button type="button" id="r-badge-favori" onclick="toggleBadgeAdd('favori')" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">❤️ Favori</button>
+        <button type="button" id="r-badge-healthy" onclick="toggleBadgeAdd('healthy')" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">🌿 Healthy</button>
+      </div>
+    </div>
     <button class="btn-primary" onclick="saveRecipe()">Enregistrer la recette</button>
     <button class="btn-secondary" onclick="closeModal('modal-add-recipe')">Annuler</button>
   </div>
@@ -1662,6 +1674,14 @@
       </label>
     </div>
 
+
+    <div class="form-group">
+      <label class="form-label">Badges</label>
+      <div style="display:flex;gap:10px">
+        <button type="button" id="e-badge-favori" onclick="toggleBadgeEdit('favori')" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">❤️ Favori</button>
+        <button type="button" id="e-badge-healthy" onclick="toggleBadgeEdit('healthy')" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">🌿 Healthy</button>
+      </div>
+    </div>
     <button class="btn-primary" onclick="saveEdit()">Enregistrer les modifications</button>
     <button class="btn-secondary" onclick="closeModal('modal-edit-recipe')">Annuler</button>
   </div>
@@ -1813,11 +1833,15 @@
       <button class="filter-btn" id="mf-plat" onclick="setMealFilterCat('Plat',this)" style="font-size:11px;padding:5px 10px">Plat</button>
       <button class="filter-btn" id="mf-dessert" onclick="setMealFilterCat('Dessert',this)" style="font-size:11px;padding:5px 10px">Dessert</button>
     </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
       <button class="filter-btn active" id="mf-regime-all" onclick="setMealFilterRegime('all',this)" style="font-size:11px;padding:5px 10px">Tous</button>
       <button class="filter-btn" id="mf-viande" onclick="setMealFilterRegime('viande',this)" style="font-size:11px;padding:5px 10px">🥩 Viande</button>
       <button class="filter-btn" id="mf-poisson" onclick="setMealFilterRegime('poisson',this)" style="font-size:11px;padding:5px 10px">🐟 Poisson</button>
       <button class="filter-btn" id="mf-vege" onclick="setMealFilterRegime('vegé',this)" style="font-size:11px;padding:5px 10px">🥦 Végé</button>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="filter-btn" id="mf-favori" onclick="toggleMealFilterBadge('favori',this)" style="font-size:11px;padding:5px 10px">❤️ Favoris</button>
+      <button class="filter-btn" id="mf-healthy" onclick="toggleMealFilterBadge('healthy',this)" style="font-size:11px;padding:5px 10px">🌿 Healthy</button>
     </div>
     <div style="font-size:11px;color:var(--text3);text-align:center;letter-spacing:2px;margin-bottom:10px">— ou choisir une recette —</div>
     <div id="meal-search-results" style="max-height:280px;overflow-y:auto"></div>
@@ -2393,8 +2417,9 @@ const QUOTES = [
         activeFilter === 'ancien' ? true :
         r.category === activeFilter;
       const matchRegime = activeRegime === 'all' ? true : r.type === activeRegime;
-      const matchFilter = matchCat && matchRegime;
-      return matchSearch && matchFilter;
+      const matchFavori = !activeFilterFavori || r.favori === true;
+      const matchHealthy = !activeFilterHealthy || r.healthy === true;
+      return matchSearch && matchCat && matchRegime && matchFavori && matchHealthy;
     });
 
     if (filtered.length === 0) {
@@ -2436,6 +2461,8 @@ const QUOTES = [
         + (r.prepTime ? '<span class="recipe-tag" style="color:var(--text3)">⏱ ' + r.prepTime + '</span>' : '')
         + (r.type && r.type !== 'autre' ? '<span class="recipe-tag" style="color:var(--text3)">' + (r.type === 'viande' ? '🥩 Viande' : r.type === 'poisson' ? '🐟 Poisson' : r.type === 'vegé' ? '🥦 Végé' : '') + '</span>' : '')
         + (count > 0 ? '<span style="font-size:11px;color:var(--text3)">🍳 ' + count + 'x</span>' : '')
+        + (r.favori ? '<span style="font-size:11px">❤️</span>' : '')
+        + (r.healthy ? '<span style="font-size:11px">🌿</span>' : '')
         + '</div>'
         + '</div>'
         + '</div>';
@@ -2454,6 +2481,21 @@ const QUOTES = [
     activeFilter = filter;
     document.querySelectorAll('#filters-cat .filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    const el = document.getElementById('recipes-list');
+    renderFiltered(allRecipes.map(r => ({ id: r.id, data: () => r.data })), el);
+  };
+
+  let activeFilterFavori = false;
+  let activeFilterHealthy = false;
+
+  window.toggleFilterBadge = (badge, btn) => {
+    if (badge === 'favori') {
+      activeFilterFavori = !activeFilterFavori;
+      btn.classList.toggle('active', activeFilterFavori);
+    } else {
+      activeFilterHealthy = !activeFilterHealthy;
+      btn.classList.toggle('active', activeFilterHealthy);
+    }
     const el = document.getElementById('recipes-list');
     renderFiltered(allRecipes.map(r => ({ id: r.id, data: () => r.data })), el);
   };
@@ -2909,6 +2951,8 @@ const QUOTES = [
         instructions: document.getElementById('r-instructions').value.trim(),
         rating: currentRating,
         cost: currentCost || null,
+        favori: currentBadgesAdd.favori || false,
+        healthy: currentBadgesAdd.healthy || false,
         photoBase64: currentRecipePhoto || null,
         createdBy: currentUser.uid,
         createdAt: serverTimestamp()
@@ -2931,6 +2975,9 @@ const QUOTES = [
     setRating(0);
     setCost(0);
     currentCost = 0;
+    currentBadgesAdd = { favori: false, healthy: false };
+    updateBadgeBtn('r-badge-favori', false);
+    updateBadgeBtn('r-badge-healthy', false);
     currentRecipePhoto = null;
     document.getElementById('recipe-photo-preview') && (document.getElementById('recipe-photo-preview').style.display = 'none');
     document.getElementById('r-url') && (document.getElementById('r-url').value = '');
@@ -2967,6 +3014,9 @@ const QUOTES = [
     document.getElementById('e-instructions').value = r.instructions || '';
     setEditRating(r.rating || 0);
     setEditCost(r.cost || 0);
+    currentBadgesEdit = { favori: r.favori || false, healthy: r.healthy || false };
+    updateBadgeBtn('e-badge-favori', currentBadgesEdit.favori);
+    updateBadgeBtn('e-badge-healthy', currentBadgesEdit.healthy);
     // Photo existante
     currentEditPhoto = r.photoBase64 || null;
     if (r.photoBase64) {
@@ -3007,6 +3057,8 @@ const QUOTES = [
         instructions: document.getElementById('e-instructions').value.trim(),
         rating: currentEditRating,
         cost: currentEditCost || null,
+        favori: currentBadgesEdit.favori || false,
+        healthy: currentBadgesEdit.healthy || false,
         photoBase64: currentEditPhoto || null,
       });
       closeModal('modal-edit-recipe');
@@ -3431,6 +3483,29 @@ const QUOTES = [
       b.style.color = active ? 'var(--gold)' : 'var(--text3)';
       b.style.fontWeight = active ? '600' : '400';
     });
+  };
+
+  // ===== BADGES FAVORI / HEALTHY =====
+  let currentBadgesAdd = { favori: false, healthy: false };
+  let currentBadgesEdit = { favori: false, healthy: false };
+
+  function updateBadgeBtn(id, active) {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.style.background = active ? 'var(--gold-dim)' : 'var(--surface)';
+    btn.style.borderColor = active ? 'rgba(201,168,76,0.6)' : 'rgba(201,168,76,0.2)';
+    btn.style.color = active ? 'var(--gold)' : 'var(--text3)';
+    btn.style.fontWeight = active ? '600' : '400';
+  }
+
+  window.toggleBadgeAdd = (badge) => {
+    currentBadgesAdd[badge] = !currentBadgesAdd[badge];
+    updateBadgeBtn('r-badge-' + badge, currentBadgesAdd[badge]);
+  };
+
+  window.toggleBadgeEdit = (badge) => {
+    currentBadgesEdit[badge] = !currentBadgesEdit[badge];
+    updateBadgeBtn('e-badge-' + badge, currentBadgesEdit[badge]);
   };
 
   window.setEditCost = (val) => {
@@ -4181,6 +4256,8 @@ const QUOTES = [
     document.getElementById('meal-search-results').innerHTML = '';
     activeMealCat = 'all';
     activeMealRegime = 'all';
+    activeMealFavori = false;
+    activeMealHealthy = false;
     document.querySelectorAll('#modal-meal .filter-btn').forEach(b => b.classList.remove('active'));
     const allCatBtn = document.getElementById('mf-cat-all');
     const allRegBtn = document.getElementById('mf-regime-all');
@@ -4234,7 +4311,9 @@ const QUOTES = [
       const matchSearch = !norm || normalize(d.name).includes(norm) || normalize(d.ingredients || '').includes(norm) || normalize(d.category || '').includes(norm);
       const matchCat = activeMealCat === 'all' ? true : d.category === activeMealCat;
       const matchRegime = activeMealRegime === 'all' ? true : d.type === activeMealRegime;
-      return matchSearch && matchCat && matchRegime;
+      const matchFavori = !activeMealFavori || d.favori === true;
+      const matchHealthy = !activeMealHealthy || d.healthy === true;
+      return matchSearch && matchCat && matchRegime && matchFavori && matchHealthy;
     });
 
     // Tri alphabétique
@@ -4607,6 +4686,19 @@ const QUOTES = [
   let currentEditSlot = null;
   let activeMealCat = 'all';
   let activeMealRegime = 'all';
+  let activeMealFavori = false;
+  let activeMealHealthy = false;
+
+  window.toggleMealFilterBadge = (badge, btn) => {
+    if (badge === 'favori') {
+      activeMealFavori = !activeMealFavori;
+      btn.classList.toggle('active', activeMealFavori);
+    } else {
+      activeMealHealthy = !activeMealHealthy;
+      btn.classList.toggle('active', activeMealHealthy);
+    }
+    renderMealSearchResults('');
+  };
 
   // ===== RESTES ET REPAS EXTÉRIEUR =====
 
