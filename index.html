@@ -1794,6 +1794,18 @@
     <div class="modal-handle"></div>
     <div class="modal-title" id="meal-modal-title">Choisir un repas</div>
     <div id="meal-current"></div>
+
+
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <button onclick="showLeftoversOnly()" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 8px;background:rgba(76,172,122,0.1);border:1px solid rgba(76,172,122,0.3);border-radius:12px;cursor:pointer;font-family:'DM Sans',sans-serif">
+        <span style="font-size:20px">♻️</span>
+        <span style="font-size:11px;font-weight:500;color:#4cac7a;letter-spacing:0.5px">Utiliser les restes</span>
+      </button>
+      <button onclick="selectExteriorMeal()" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 8px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:12px;cursor:pointer;font-family:'DM Sans',sans-serif">
+        <span style="font-size:20px">🍽</span>
+        <span style="font-size:11px;font-weight:500;color:var(--gold);letter-spacing:0.5px">Repas en extérieur</span>
+      </button>
+    </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
       <button class="filter-btn active" id="mf-cat-all" onclick="setMealFilterCat('all',this)" style="font-size:11px;padding:5px 10px">Toutes</button>
       <button class="filter-btn" id="mf-entree" onclick="setMealFilterCat('Entrée',this)" style="font-size:11px;padding:5px 10px">Entrée</button>
@@ -1805,17 +1817,6 @@
       <button class="filter-btn" id="mf-viande" onclick="setMealFilterRegime('viande',this)" style="font-size:11px;padding:5px 10px">🥩 Viande</button>
       <button class="filter-btn" id="mf-poisson" onclick="setMealFilterRegime('poisson',this)" style="font-size:11px;padding:5px 10px">🐟 Poisson</button>
       <button class="filter-btn" id="mf-vege" onclick="setMealFilterRegime('vegé',this)" style="font-size:11px;padding:5px 10px">🥦 Végé</button>
-    </div>
-    <input class="form-input compact" id="meal-search-input" type="text" placeholder="Rechercher une recette..." oninput="renderMealSearchResults(this.value)" style="margin-bottom:10px">
-    <div style="display:flex;gap:10px;margin-bottom:12px">
-      <button onclick="showLeftoversOnly()" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 8px;background:rgba(76,172,122,0.1);border:1px solid rgba(76,172,122,0.3);border-radius:12px;cursor:pointer;font-family:'DM Sans',sans-serif">
-        <span style="font-size:20px">♻️</span>
-        <span style="font-size:11px;font-weight:500;color:#4cac7a;letter-spacing:0.5px">Utiliser les restes</span>
-      </button>
-      <button onclick="selectExteriorMeal()" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 8px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:12px;cursor:pointer;font-family:'DM Sans',sans-serif">
-        <span style="font-size:20px">🍽</span>
-        <span style="font-size:11px;font-weight:500;color:var(--gold);letter-spacing:0.5px">Repas en extérieur</span>
-      </button>
     </div>
     <div style="font-size:11px;color:var(--text3);text-align:center;letter-spacing:2px;margin-bottom:10px">— ou choisir une recette —</div>
     <div id="meal-search-results" style="max-height:280px;overflow-y:auto"></div>
@@ -4176,9 +4177,7 @@ const QUOTES = [
 
     document.getElementById('meal-modal-title').textContent =
       slotKey.replace('-', ' — ').replace(/^\w/, c => c.toUpperCase());
-    document.getElementById('meal-search-input').value = '';
     document.getElementById('meal-search-results').innerHTML = '';
-    // Réinitialiser les filtres
     activeMealCat = 'all';
     activeMealRegime = 'all';
     document.querySelectorAll('#modal-meal .filter-btn').forEach(b => b.classList.remove('active'));
@@ -4235,7 +4234,11 @@ const QUOTES = [
       const matchCat = activeMealCat === 'all' ? true : d.category === activeMealCat;
       const matchRegime = activeMealRegime === 'all' ? true : d.type === activeMealRegime;
       return matchSearch && matchCat && matchRegime;
-    }).slice(0, 30);
+    }).sort((a, b) => {
+      const da = typeof a.data === 'function' ? a.data() : a.data;
+      const db = typeof b.data === 'function' ? b.data() : b.data;
+      return (da.name || '').localeCompare(db.name || '', 'fr');
+    });
 
     if (filtered.length > 0) {
       // Recettes déjà dans la semaine
