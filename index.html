@@ -4178,6 +4178,14 @@ const QUOTES = [
       slotKey.replace('-', ' — ').replace(/^\w/, c => c.toUpperCase());
     document.getElementById('meal-search-input').value = '';
     document.getElementById('meal-search-results').innerHTML = '';
+    // Réinitialiser les filtres
+    activeMealCat = 'all';
+    activeMealRegime = 'all';
+    document.querySelectorAll('#modal-meal .filter-btn').forEach(b => b.classList.remove('active'));
+    const allCatBtn = document.getElementById('mf-cat-all');
+    const allRegBtn = document.getElementById('mf-regime-all');
+    if (allCatBtn) allCatBtn.classList.add('active');
+    if (allRegBtn) allRegBtn.classList.add('active');
     document.getElementById('meal-current').innerHTML = slot
       ? '<div style="font-size:13px;color:var(--text2);margin-bottom:12px">Actuellement : <strong>' + (slot.name||'').toUpperCase() + '</strong> <button onclick="clearMealSlot()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;margin-left:8px">Supprimer</button></div>'
       : '';
@@ -4223,7 +4231,7 @@ const QUOTES = [
     // Recettes
     const filtered = allRecipes.filter(r => {
       const d = typeof r.data === 'function' ? r.data() : r.data;
-      const matchSearch = !norm || normalize(d.name).includes(norm);
+      const matchSearch = !norm || normalize(d.name).includes(norm) || normalize(d.ingredients || '').includes(norm) || normalize(d.category || '').includes(norm);
       const matchCat = activeMealCat === 'all' ? true : d.category === activeMealCat;
       const matchRegime = activeMealRegime === 'all' ? true : d.type === activeMealRegime;
       return matchSearch && matchCat && matchRegime;
@@ -4439,11 +4447,9 @@ const QUOTES = [
     const items = Array.from(checklist.children);
     let currentCat = null;
     let hasChecked = false;
-    items.forEach((el, i) => {
+    items.forEach((el) => {
       if (el.classList.contains('ing-category')) {
         if (currentCat !== null) {
-          currentCat.style.display = hasChecked ? '' : 'none';
-          // Mettre à jour le checkbox de la catégorie
           const catCb = currentCat.querySelector('input[type="checkbox"]');
           if (catCb) catCb.checked = hasChecked;
         }
@@ -4455,7 +4461,6 @@ const QUOTES = [
       }
     });
     if (currentCat !== null) {
-      currentCat.style.display = hasChecked ? '' : 'none';
       const catCb = currentCat.querySelector('input[type="checkbox"]');
       if (catCb) catCb.checked = hasChecked;
     }
