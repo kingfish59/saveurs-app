@@ -2455,14 +2455,12 @@ const QUOTES = [
       const r = d.data ? d.data() : d.data;
 
       const count = cookCounts[id] || 0;
-      const isCrown = topRecipeId === id && count > 0;
       return '<div class="recipe-card" onclick="openRecipe(\'' + id + '\')" style="position:relative">'
-        + (isCrown ? '<span style="position:absolute;top:-6px;right:10px;font-size:18px;z-index:2" title="Recette la plus cuisinee">👑</span>' : '')
         + (r.photoBase64
           ? '<img class="recipe-thumb" src="' + r.photoBase64 + '" alt="" loading="lazy">'
           : '<div class="recipe-thumb-placeholder">' + getCategoryEmoji(r.category) + '</div>')
         + '<div class="recipe-info">'
-        + '<div class="recipe-name">' + (r.name || '').toUpperCase() + (isCrown ? ' 👑' : '') + '</div>'
+        + '<div class="recipe-name">' + (r.name || '').toUpperCase() + '</div>'
         + '<div class="recipe-meta" style="flex-wrap:wrap;gap:6px">'
         + (r.category ? '<span class="recipe-tag">' + r.category + '</span>' : '')
         + (r.cost ? '<span style="color:var(--gold);font-size:11px;font-weight:600">' + '\u20ac'.repeat(r.cost) + '</span>' : '')
@@ -2825,11 +2823,10 @@ const QUOTES = [
       recipesSnap.docs.forEach(d => { recipes[d.id] = d.data(); });
       const history = historySnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.date||'').localeCompare(a.date||''));
 
-      // Comptage par recette
-      const counts = {};
+      // Utiliser cookCounts (basé sur le semainier)
+      const counts = cookCounts;
       const lastDates = {};
       history.forEach(h => {
-        counts[h.recipeId] = (counts[h.recipeId] || 0) + 1;
         if (!lastDates[h.recipeId] || h.date > lastDates[h.recipeId]) {
           lastDates[h.recipeId] = h.date;
         }
