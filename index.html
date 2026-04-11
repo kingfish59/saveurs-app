@@ -1374,6 +1374,10 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><path d="M12 3v12"/><path d="M9 6l3-3 3 3"/></svg>
         Partager l'application
       </button>
+      <button onclick="shareCarnet()" style="width:100%;margin-top:10px;padding:14px;background:var(--surface);border:1px solid rgba(201,168,76,0.3);border-radius:var(--radius-sm);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Partager mon carnet de recettes
+      </button>
       <!-- RÉGLAGES -->
       <div style="margin-top:28px;padding-top:24px;border-top:1px solid rgba(201,168,76,0.12)">
         <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold);margin-bottom:16px">Réglages</div>
@@ -1915,6 +1919,33 @@
   </div>
 </div>
 
+<!-- MODAL CARNET PARTAGÉ -->
+<div class="modal-overlay" id="modal-carnet">
+  <div class="modal" style="max-height:85vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div class="modal-title" id="carnet-modal-title">Carnet de recettes</div>
+      <button onclick="closeModal('modal-carnet')" style="background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer;padding:4px">✕</button>
+    </div>
+    <div id="carnet-modal-subtitle" style="font-size:12px;color:var(--text3);margin-bottom:16px"></div>
+    <div id="carnet-recipes-list"></div>
+  </div>
+</div>
+
+<!-- MODAL DÉTAIL RECETTE CARNET -->
+<div class="modal-overlay" id="modal-carnet-detail">
+  <div class="modal" style="max-height:85vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+      <button onclick="closeModal('modal-carnet-detail')" style="background:none;border:none;color:var(--gold);font-size:22px;cursor:pointer;padding:4px">‹</button>
+      <div class="modal-title" id="carnet-detail-title" style="margin-bottom:0"></div>
+    </div>
+    <div id="carnet-detail-content"></div>
+    <button onclick="importFromCarnet()" class="btn-primary" style="margin-top:16px">➕ Ajouter à mes recettes</button>
+    <button onclick="closeModal('modal-carnet-detail')" class="btn-secondary" style="margin-top:8px">Fermer</button>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -2089,6 +2120,7 @@ const QUOTES = [
         renderProfileFAQ();
         // Détecter une recette partagée via URL
         checkSharedRecipeParam();
+        checkSharedCarnetParam();
         applyWeekStartDay();
         checkUnreadReply();
         setMsgType('suggestion');
@@ -4842,6 +4874,122 @@ const QUOTES = [
       if (e.target === overlay) overlay.classList.remove('open');
     });
   });
+
+  // ===== PARTAGE CARNET =====
+  let currentCarnetRecipe = null;
+
+  window.shareCarnet = async () => {
+    if (!currentUser || !userGroupId) { showToast('Connectez-vous d\'abord'); return; }
+    try {
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const ref = await addDoc(collection(db, 'shared_carnets'), {
+        groupId: userGroupId,
+        ownerName: currentUser.displayName || currentUser.email,
+        ownerFirstName: (currentUser.displayName || currentUser.email).split(' ')[0],
+        createdAt: serverTimestamp(),
+        expiresAt
+      });
+      const link = 'https://saveurs-app.vercel.app?carnet=' + ref.id;
+      const firstName = (currentUser.displayName || '').split(' ')[0] || 'moi';
+      const msg = [
+        'Salut ! Je te partage mon carnet de recettes Saveurs 📖',
+        '',
+        '👉 ' + link,
+        '',
+        '⏳ Ce lien est valable 24 heures.',
+        '',
+        'Tu peux parcourir mes recettes et ajouter celles qui te plaisent dans ton propre carnet !'
+      ].join('\n');
+      if (navigator.share) {
+        navigator.share({ title: 'Mon carnet de recettes', text: msg })
+          .catch(e => { if (e.name !== 'AbortError') navigator.clipboard.writeText(msg).then(() => showToast('Lien copié !')); });
+      } else {
+        navigator.clipboard.writeText(msg).then(() => showToast('Lien copié !'));
+      }
+    } catch(e) { showToast('Erreur : ' + e.message); }
+  };
+
+  async function checkSharedCarnetParam() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const carnetId = params.get('carnet');
+      if (!carnetId) return;
+      window.history.replaceState({}, '', '/');
+
+      const snap = await getDoc(doc(db, 'shared_carnets', carnetId));
+      if (!snap.exists()) { showToast('Ce lien de carnet est invalide'); return; }
+      const data = snap.data();
+
+      // Vérifier expiration
+      const expiresAt = data.expiresAt?.toDate?.() || new Date(0);
+      if (new Date() > expiresAt) { showToast('Ce lien a expiré (valable 24h)'); return; }
+
+      // Charger les recettes du groupe source
+      const recipesSnap = await getDocs(collection(db, 'groups', data.groupId, 'recipes'));
+      const recipes = recipesSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+
+      document.getElementById('carnet-modal-title').textContent = 'Carnet de ' + (data.ownerFirstName || data.ownerName || 'votre ami');
+      document.getElementById('carnet-modal-subtitle').textContent = recipes.length + ' recette' + (recipes.length > 1 ? 's' : '') + ' · Lien valable jusqu\'à ' + expiresAt.toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+      const list = document.getElementById('carnet-recipes-list');
+      list.innerHTML = recipes.map((r, i) => {
+        const meta = [r.category, r.prepTime ? '⏱ ' + r.prepTime : ''].filter(Boolean).join(' · ');
+        return '<div onclick="openCarnetRecipe(' + i + ')" style="padding:12px 4px;border-bottom:1px solid rgba(201,168,76,0.08);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px">'
+          + '<div>'
+          + '<div style="font-size:13px;font-weight:500;color:var(--text)">' + (r.name || '').toUpperCase() + '</div>'
+          + (meta ? '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + meta + '</div>' : '')
+          + '</div>'
+          + '<span style="color:var(--gold)">›</span>'
+          + '</div>';
+      }).join('');
+
+      window._carnetRecipes = recipes;
+      openModal('modal-carnet');
+    } catch(e) { console.error('checkSharedCarnetParam:', e); }
+  }
+
+  window.openCarnetRecipe = (idx) => {
+    const r = (window._carnetRecipes || [])[idx];
+    if (!r) return;
+    currentCarnetRecipe = r;
+    document.getElementById('carnet-detail-title').textContent = (r.name || '').toUpperCase();
+    const typeLabels = { viande: '🥩 Viande', poisson: '🐟 Poisson', 'vegé': '🥦 Végé' };
+    document.getElementById('carnet-detail-content').innerHTML =
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">'
+      + (r.category ? '<span class="detail-badge">' + r.category + '</span>' : '')
+      + (r.prepTime ? '<span class="detail-badge">⏱ ' + r.prepTime + '</span>' : '')
+      + (r.servings ? '<span class="detail-badge">👥 ' + r.servings + ' pers.</span>' : '')
+      + (r.type && typeLabels[r.type] ? '<span class="detail-badge">' + typeLabels[r.type] + '</span>' : '')
+      + (r.cost ? '<span class="detail-badge" style="color:var(--gold)">€</span>'.repeat(r.cost) : '')
+      + '</div>'
+      + (r.ingredients ? '<div class="detail-section-title">Ingrédients</div>' + r.ingredients.split('\n').filter(l => l.trim()).map(l => '<div class="ingredient-line">' + l + '</div>').join('') : '')
+      + (r.instructions ? '<div class="detail-section-title" style="margin-top:16px">Instructions</div>' + r.instructions.split('\n').filter(l => l.trim()).map((s, i) => '<div class="step-item"><div class="step-num">' + (i+1) + '</div><div class="step-text">' + s + '</div></div>').join('') : '');
+    openModal('modal-carnet-detail');
+  };
+
+  window.importFromCarnet = async () => {
+    if (!currentCarnetRecipe) return;
+    if (!currentUser) {
+      showToast('Connectez-vous pour importer cette recette');
+      return;
+    }
+    try {
+      const gid = userGroupId || currentUser.uid;
+      const { id, ...recipeData } = currentCarnetRecipe;
+      await addDoc(collection(db, 'groups', gid, 'recipes'), {
+        ...recipeData,
+        importedFromCarnet: true,
+        importedAt: serverTimestamp(),
+        createdAt: serverTimestamp()
+      });
+      showToast('✓ Recette ajoutée à votre carnet !');
+      closeModal('modal-carnet-detail');
+      await loadRecentRecipes();
+      loadStats();
+    } catch(e) { showToast('Erreur : ' + e.message); }
+  };
 
   window.shareApp = async () => {
     const msg = [
