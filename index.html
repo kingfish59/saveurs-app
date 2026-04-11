@@ -2083,6 +2083,7 @@ const QUOTES = [
             lastSeen: serverTimestamp()
           }, { merge: true }).catch(() => {});
         }
+        await loadCookCounts();
         await loadStats();
         await loadRecentRecipes();
         renderProfileFAQ();
@@ -4802,7 +4803,7 @@ const QUOTES = [
     if (page === 'semainier') {
       loadWeekPlan(getWeekKey(currentWeekOffset)).then(() => renderWeekGrid());
     }
-    if (page === 'stats') loadStatsPage();
+    if (page === 'stats') { loadCookCounts().then(() => { loadStatsPage(); sortAndRender(); }); }
     if (page === 'profil') {
       renderProfileFAQ();
       checkUnreadReply();
