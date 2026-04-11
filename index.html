@@ -4234,11 +4234,10 @@ const QUOTES = [
       const matchCat = activeMealCat === 'all' ? true : d.category === activeMealCat;
       const matchRegime = activeMealRegime === 'all' ? true : d.type === activeMealRegime;
       return matchSearch && matchCat && matchRegime;
-    }).sort((a, b) => {
-      const da = typeof a.data === 'function' ? a.data() : a.data;
-      const db = typeof b.data === 'function' ? b.data() : b.data;
-      return (da.name || '').localeCompare(db.name || '', 'fr');
     });
+
+    // Tri alphabétique
+    filtered.sort((a, b) => (a.data.name || '').localeCompare(b.data.name || '', 'fr'));
 
     if (filtered.length > 0) {
       // Recettes déjà dans la semaine
