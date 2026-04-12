@@ -1296,7 +1296,6 @@
         <button class="filter-btn" id="filter-healthy" onclick="toggleFilterBadge('healthy',this)">🌿 Healthy</button>
       </div>
       <div id="recipes-list">
-      <button id="scroll-top-btn" onclick="document.querySelector('.app-content').scrollTo({top:0,behavior:'smooth'})" style="display:none;position:fixed;bottom:90px;left:20px;z-index:50;width:40px;height:40px;border-radius:50%;background:var(--surface2);border:1px solid rgba(201,168,76,0.3);color:var(--gold);font-size:18px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.4);transition:opacity 0.2s">↑</button>
         <div class="empty-state">
           <div class="empty-icon">📖</div>
           <div class="empty-title">Carnet vide</div>
@@ -2116,6 +2115,15 @@ const QUOTES = [
         checkSharedRecipeParam();
         checkSharedCarnetParam();
         applyWeekStartDay();
+        // Listener scroll pour bouton retour haut page recettes
+        const _appContent = document.querySelector('.app-content');
+        const _scrollBtn = document.getElementById('scroll-top-btn');
+        if (_appContent && _scrollBtn) {
+          _appContent.addEventListener('scroll', () => {
+            const onRecettes = document.getElementById('page-recettes').classList.contains('active');
+            _scrollBtn.style.display = (onRecettes && _appContent.scrollTop > 120) ? 'block' : 'none';
+          });
+        }
         checkUnreadReply();
         setMsgType('suggestion');
       } else {
@@ -4820,14 +4828,6 @@ const QUOTES = [
   window.switchPage = (page) => {
     if (page === 'recettes') {
       sortAndRender();
-      const scrollEl = document.querySelector('.app-content');
-      const btn = document.getElementById('scroll-top-btn');
-      if (scrollEl && btn && !scrollEl._scrollBound) {
-        scrollEl.addEventListener('scroll', () => {
-          btn.style.display = scrollEl.scrollTop > 120 ? 'block' : 'none';
-        });
-        scrollEl._scrollBound = true;
-      }
     }
     if (page === 'semainier') {
       loadWeekPlan(getWeekKey(currentWeekOffset)).then(() => renderWeekGrid());
@@ -5456,5 +5456,7 @@ const QUOTES = [
     setTimeout(() => t.classList.remove('show'), 2500);
   };
 </script>
+  <!-- SCROLL TO TOP -->
+  <button id="scroll-top-btn" onclick="document.querySelector('.app-content').scrollTo({top:0,behavior:'smooth'})" style="display:none;position:fixed;bottom:90px;left:20px;z-index:200;width:40px;height:40px;border-radius:50%;background:var(--surface2);border:1px solid rgba(201,168,76,0.4);color:var(--gold);font-size:18px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.5)">↑</button>
 </body>
 </html>
