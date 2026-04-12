@@ -3913,6 +3913,7 @@ const QUOTES = [
         return '<div class="meal-slot' + (isEmpty ? ' meal-slot-empty' : '') + '" onclick="openMealSlot(\'' + wkey + '\',\'' + slotKey + '\')">'
           + '<div class="meal-slot-label">' + meal.label + '</div>'
           + '<div class="meal-slot-content">' + nameHTML + metaHTML + '</div>'
+          + (slot && slot.type === 'recipe' && slot.recipeId ? '<div onclick="event.stopPropagation();openRecipe(\'' + slot.recipeId + '\')" style="color:var(--gold);font-size:22px;line-height:1;padding:0 4px;flex-shrink:0;opacity:0.8">›</div>' : '')
           + (slot && slot.type !== 'leftovers' && slot.type !== 'exterior' ? '<div class="meal-slot-check' + (isChecked ? ' checked' : '') + '" onclick="event.stopPropagation();toggleShoppingCheck(\'' + wkey + '\',\'' + slotKey + '\')">' + (isChecked ? '✓' : '') + '</div>' : '')
           + '</div>';
       }).join('');
