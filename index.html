@@ -1291,6 +1291,7 @@
       </div>
       <div class="filters-row" id="filters-badges" style="margin-top:-4px;display:flex;align-items:center;gap:6px">
         <span style="font-size:11px;color:var(--text3);white-space:nowrap">Badges :</span>
+        <button class="filter-btn" id="filter-robot" onclick="toggleFilterBadge('robot',this)">🤖 Robot</button>
         <button class="filter-btn" id="filter-favori" onclick="toggleFilterBadge('favori',this)">❤️ Favoris</button>
         <button class="filter-btn" id="filter-healthy" onclick="toggleFilterBadge('healthy',this)">🌿 Healthy</button>
       </div>
@@ -1591,6 +1592,7 @@
     <div class="form-group">
       <label class="form-label">Badges</label>
       <div style="display:flex;gap:10px">
+        <button type="button" id="r-badge-robot" onclick="toggleBadgeAdd('robot')" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">🤖 Robot</button>
         <button type="button" id="r-badge-favori" onclick="toggleBadgeAdd('favori')" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">❤️ Favori</button>
         <button type="button" id="r-badge-healthy" onclick="toggleBadgeAdd('healthy')" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">🌿 Healthy</button>
       </div>
@@ -1673,6 +1675,7 @@
     <div class="form-group">
       <label class="form-label">Badges</label>
       <div style="display:flex;gap:10px">
+        <button type="button" id="e-badge-robot" onclick="toggleBadgeEdit('robot')" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">🤖 Robot</button>
         <button type="button" id="e-badge-favori" onclick="toggleBadgeEdit('favori')" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">❤️ Favori</button>
         <button type="button" id="e-badge-healthy" onclick="toggleBadgeEdit('healthy')" style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid rgba(201,168,76,0.2);color:var(--text3);font-size:15px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif">🌿 Healthy</button>
       </div>
@@ -1836,6 +1839,7 @@
     </div>
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px">
       <span style="font-size:11px;color:var(--text3);white-space:nowrap">Badges :</span>
+      <button class="filter-btn" id="mf-robot" onclick="toggleMealFilterBadge('robot',this)" style="font-size:11px;padding:5px 10px">🤖 Robot</button>
       <button class="filter-btn" id="mf-favori" onclick="toggleMealFilterBadge('favori',this)" style="font-size:11px;padding:5px 10px">❤️ Favoris</button>
       <button class="filter-btn" id="mf-healthy" onclick="toggleMealFilterBadge('healthy',this)" style="font-size:11px;padding:5px 10px">🌿 Healthy</button>
     </div>
@@ -2446,9 +2450,10 @@ const QUOTES = [
         activeFilter === 'ancien' ? true :
         r.category === activeFilter;
       const matchRegime = activeRegime === 'all' ? true : r.type === activeRegime;
+      const matchRobot = !activeFilterRobot || r.robot === true;
       const matchFavori = !activeFilterFavori || r.favori === true;
       const matchHealthy = !activeFilterHealthy || r.healthy === true;
-      return matchSearch && matchCat && matchRegime && matchFavori && matchHealthy;
+      return matchSearch && matchCat && matchRegime && matchRobot && matchFavori && matchHealthy;
     });
 
     if (filtered.length === 0) {
@@ -2487,6 +2492,7 @@ const QUOTES = [
         + (r.prepTime ? '<span class="recipe-tag" style="color:var(--text3)">⏱ ' + r.prepTime + '</span>' : '')
         + (r.type && r.type !== 'autre' ? '<span class="recipe-tag" style="color:var(--text3)">' + (r.type === 'viande' ? '🥩 Viande' : r.type === 'poisson' ? '🐟 Poisson' : r.type === 'vegé' ? '🥦 Végé' : '') + '</span>' : '')
         + (count > 0 ? '<span style="font-size:11px;color:var(--text3)">🍳 ' + count + 'x</span>' : '')
+        + (r.robot ? '<span style="font-size:11px">🤖</span>' : '')
         + (r.favori ? '<span style="font-size:11px">❤️</span>' : '')
         + (r.healthy ? '<span style="font-size:11px">🌿</span>' : '')
         + '</div>'
@@ -2511,11 +2517,15 @@ const QUOTES = [
     renderFiltered(allRecipes.map(r => ({ id: r.id, data: () => r.data })), el);
   };
 
+  let activeFilterRobot = false;
   let activeFilterFavori = false;
   let activeFilterHealthy = false;
 
   window.toggleFilterBadge = (badge, btn) => {
-    if (badge === 'favori') {
+    if (badge === 'robot') {
+      activeFilterRobot = !activeFilterRobot;
+      btn.classList.toggle('active', activeFilterRobot);
+    } else if (badge === 'favori') {
       activeFilterFavori = !activeFilterFavori;
       btn.classList.toggle('active', activeFilterFavori);
     } else {
@@ -2976,6 +2986,7 @@ const QUOTES = [
         rating: currentRating,
         favori: currentBadgesAdd.favori || false,
         healthy: currentBadgesAdd.healthy || false,
+        robot: currentBadgesAdd.robot || false,
         photoBase64: currentRecipePhoto || null,
         createdBy: currentUser.uid,
         createdAt: serverTimestamp()
@@ -2996,7 +3007,8 @@ const QUOTES = [
       if (el) el.value = '';
     });
     setRating(0);
-    currentBadgesAdd = { favori: false, healthy: false };
+    currentBadgesAdd = { favori: false, healthy: false, robot: false };
+    updateBadgeBtn('r-badge-robot', false);
     updateBadgeBtn('r-badge-favori', false);
     updateBadgeBtn('r-badge-healthy', false);
     currentRecipePhoto = null;
@@ -3034,7 +3046,8 @@ const QUOTES = [
     document.getElementById('e-ingredients').value = r.ingredients || '';
     document.getElementById('e-instructions').value = r.instructions || '';
     setEditRating(r.rating || 0);
-    currentBadgesEdit = { favori: r.favori || false, healthy: r.healthy || false };
+    currentBadgesEdit = { favori: r.favori || false, healthy: r.healthy || false, robot: r.robot || false };
+    updateBadgeBtn('e-badge-robot', currentBadgesEdit.robot);
     updateBadgeBtn('e-badge-favori', currentBadgesEdit.favori);
     updateBadgeBtn('e-badge-healthy', currentBadgesEdit.healthy);
     // Photo existante
@@ -3078,6 +3091,7 @@ const QUOTES = [
         rating: currentEditRating,
         favori: currentBadgesEdit.favori || false,
         healthy: currentBadgesEdit.healthy || false,
+        robot: currentBadgesEdit.robot || false,
         photoBase64: currentEditPhoto || null,
       });
       closeModal('modal-edit-recipe');
@@ -3496,8 +3510,8 @@ const QUOTES = [
 
 
   // ===== BADGES FAVORI / HEALTHY =====
-  let currentBadgesAdd = { favori: false, healthy: false };
-  let currentBadgesEdit = { favori: false, healthy: false };
+  let currentBadgesAdd = { favori: false, healthy: false, robot: false };
+  let currentBadgesEdit = { favori: false, healthy: false, robot: false };
 
   function updateBadgeBtn(id, active) {
     const btn = document.getElementById(id);
@@ -4256,6 +4270,7 @@ const QUOTES = [
     document.getElementById('meal-search-results').innerHTML = '';
     activeMealCat = 'all';
     activeMealRegime = 'all';
+    activeMealRobot = false;
     activeMealFavori = false;
     activeMealHealthy = false;
     document.querySelectorAll('#modal-meal .filter-btn').forEach(b => b.classList.remove('active'));
@@ -4311,9 +4326,10 @@ const QUOTES = [
       const matchSearch = !norm || normalize(d.name).includes(norm) || normalize(d.ingredients || '').includes(norm) || normalize(d.category || '').includes(norm);
       const matchCat = activeMealCat === 'all' ? true : d.category === activeMealCat;
       const matchRegime = activeMealRegime === 'all' ? true : d.type === activeMealRegime;
+      const matchRobot = !activeMealRobot || d.robot === true;
       const matchFavori = !activeMealFavori || d.favori === true;
       const matchHealthy = !activeMealHealthy || d.healthy === true;
-      return matchSearch && matchCat && matchRegime && matchFavori && matchHealthy;
+      return matchSearch && matchCat && matchRegime && matchRobot && matchFavori && matchHealthy;
     });
 
     // Tri alphabétique
@@ -4703,11 +4719,15 @@ const QUOTES = [
   let currentEditSlot = null;
   let activeMealCat = 'all';
   let activeMealRegime = 'all';
+  let activeMealRobot = false;
   let activeMealFavori = false;
   let activeMealHealthy = false;
 
   window.toggleMealFilterBadge = (badge, btn) => {
-    if (badge === 'favori') {
+    if (badge === 'robot') {
+      activeMealRobot = !activeMealRobot;
+      btn.classList.toggle('active', activeMealRobot);
+    } else if (badge === 'favori') {
       activeMealFavori = !activeMealFavori;
       btn.classList.toggle('active', activeMealFavori);
     } else {
