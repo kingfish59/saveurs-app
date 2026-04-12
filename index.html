@@ -1296,6 +1296,7 @@
         <button class="filter-btn" id="filter-healthy" onclick="toggleFilterBadge('healthy',this)">🌿 Healthy</button>
       </div>
       <div id="recipes-list">
+      <button id="scroll-top-btn" onclick="document.getElementById('page-recettes').scrollTo({top:0,behavior:'smooth'})" style="display:none;position:fixed;bottom:90px;left:20px;z-index:50;width:40px;height:40px;border-radius:50%;background:var(--surface2);border:1px solid rgba(201,168,76,0.3);color:var(--gold);font-size:18px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.4);transition:opacity 0.2s">↑</button>
         <div class="empty-state">
           <div class="empty-icon">📖</div>
           <div class="empty-title">Carnet vide</div>
@@ -4817,6 +4818,17 @@ const QUOTES = [
   };
 
   window.switchPage = (page) => {
+    if (page === 'recettes') {
+      sortAndRender();
+      const pageEl = document.getElementById('page-recettes');
+      const btn = document.getElementById('scroll-top-btn');
+      if (pageEl && btn && !pageEl._scrollBound) {
+        pageEl.addEventListener('scroll', () => {
+          btn.style.display = pageEl.scrollTop > 120 ? 'block' : 'none';
+        });
+        pageEl._scrollBound = true;
+      }
+    }
     if (page === 'semainier') {
       loadWeekPlan(getWeekKey(currentWeekOffset)).then(() => renderWeekGrid());
     }
