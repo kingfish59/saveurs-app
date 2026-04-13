@@ -3830,12 +3830,13 @@ const QUOTES = [
   }
 
   function getWeekKey(offset) {
-    // Toujours basé sur le LUNDI ISO pour des clés Firestore stables
-    const now = new Date();
-    const day = now.getDay();
-    const diffToMonday = (day === 0 ? -6 : 1 - day);
-    const monday = new Date(now);
-    monday.setDate(now.getDate() + diffToMonday + offset * 7);
+    // Basé sur getWeekStart pour être cohérent avec l'affichage
+    const start = getWeekStart(offset);
+    // Trouver le lundi ISO de cette semaine pour la clé Firestore
+    const dow = start.getDay();
+    const diffToMon = (dow === 0 ? -6 : 1 - dow);
+    const monday = new Date(start);
+    monday.setDate(start.getDate() + diffToMon);
     monday.setHours(0,0,0,0);
     const year = monday.getFullYear();
     const week = Math.ceil(((monday - new Date(year,0,1)) / 86400000 + new Date(year,0,1).getDay() + 1) / 7);
