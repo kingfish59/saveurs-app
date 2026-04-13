@@ -1947,7 +1947,7 @@
 <!-- FIREBASE SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { getFirestore, collection, doc, addDoc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, orderBy, limit, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   // -- CONFIG FIREBASE --
@@ -2085,11 +2085,6 @@ const QUOTES = [
 
   // -- INIT AUTH : gérer redirection puis écouter l'état --
   async function initAuth() {
-    try {
-      await getRedirectResult(auth);
-    } catch (e) {
-      console.log('Redirect error:', e);
-    }
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         currentUser = user;
@@ -4207,8 +4202,8 @@ const QUOTES = [
     const filledSlots = Object.values(sourcePlan).filter(s => s && s.name).length;
     if (filledSlots === 0) { showToast('Cette semaine est vide'); return; }
 
-    // Centrer le calendrier sur le mois de la semaine source
-    const ws = getWeekStart(currentWeekOffset);
+    // Centrer le calendrier sur le mois de la semaine SUIVANTE (destination probable)
+    const ws = getWeekStart(currentWeekOffset + 1);
     const now = new Date();
     dupCalOffset = (ws.getFullYear() - now.getFullYear()) * 12 + ws.getMonth() - now.getMonth();
 
